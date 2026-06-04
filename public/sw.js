@@ -1,12 +1,35 @@
-// +++ الخدمة الخلفية للتنبيهات الفورية (Service Worker for Push & Alarms) +++
-// تم تصميمها بنبض عالي الكفاءة للعمل بالخلفية وإطلاق تذكيرات الأدوية وشرب المياه حتى عند غلق التطبيق تلقائياً
+// +++ الخدمة الخلفية للتنبيهات الفورية (Service Worker for Push & Alarms & Offline Caching) +++
+// تم تصميمها بنبض عالي الكفاءة للعمل بالخلفية وإطلاق تذكيرات الأدوية وشرب المياه ومطابقة شروط متصفحات الموبايل بالكامل (PWA)
+
+const CACHE_NAME = 'healthcompanion-cache-v1';
+const ASSETS_TO_CACHE = [
+  '/',
+  '/index.html',
+  '/icon-192.png',
+  '/icon-512.png'
+];
 
 self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(ASSETS_TO_CACHE);
+    })
+  );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cache) => {
+          if (cache !== CACHE_NAME) {
+            return caches.delete(cache);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
+  );
 });
 
 // استقبال البش نوتيفيكيشن الحقيقي أو المحاكي عبر السيرفر
@@ -76,6 +99,40 @@ self.addEventListener('notificationclick', (event) => {
       if (clients.openWindow) {
         return clients.openWindow(urlToOpen);
       }
+    })
+  );
+});
+
+// معالج جلب البيانات (Fetch Handler) - وهو الشرط الأساسي الذي يطلبه متصفح كروم لتثبيت التطبيق على الجوال!
+self.addEventListener('fetch', (event) => {
+  // عدم كشونة طلبات الـ API أو الطلبات الخارجية غير الآمنة
+  if (event.request.url.includes('/api/')) {
+    return;
+  }
+  
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      return fetch(event.request).then((networkResponse) => {
+        // تخزين الاستجابات الصالحة في الخلفية لتسريع الفتح القادم
+        if (
+          networkResponse &&
+          networkResponse.status === 200 &&
+          (event.request.url.startsWith(self.location.origin) || event.request.url.includes('fonts.googleapis.com'))
+        ) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      }).catch(() => {
+        if (event.request.mode === 'navigate') {
+          return caches.match('/');
+        }
+      });
     })
   );
 });

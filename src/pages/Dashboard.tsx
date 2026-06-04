@@ -6180,6 +6180,8 @@ export default function Dashboard() {
          medsStatus={medsStatus}
        />
        <ApkDownloadModal
+           deferredPrompt={deferredPrompt}
+           setDeferredPrompt={setDeferredPrompt}
           isOpen={isApkDialogOpen}
           onClose={() => setIsApkDialogOpen(false)}
       />

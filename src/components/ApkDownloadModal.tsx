@@ -7,10 +7,24 @@ import { cn } from '../lib/utils';
 interface ApkDownloadModalProps {
   isOpen: boolean;
   onClose: () => void;
+  deferredPrompt?: any;
+  setDeferredPrompt?: (prompt: any) => void;
 }
 
-export default function ApkDownloadModal({ isOpen, onClose }: ApkDownloadModalProps) {
+export default function ApkDownloadModal({ isOpen, onClose, deferredPrompt, setDeferredPrompt }: ApkDownloadModalProps) {
   const [activeTab, setActiveTab] = useState<'apk' | 'ios' | 'android_pwa'>('apk');
+
+  const handleInstallClick = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then((choiceResult: any) => {
+        if (choiceResult.outcome === 'accepted') {
+          console.log('User accepted the install prompt');
+        }
+        if (setDeferredPrompt) setDeferredPrompt(null);
+      });
+    }
+  };
 
   // --- +++ أضيفت لتجنب تقديم بالخادم وتخطي تداخل شريط التنقل السفلي وسهولة التمرير +++ ---
   if (typeof document === 'undefined') return null;
@@ -172,13 +186,31 @@ export default function ApkDownloadModal({ isOpen, onClose }: ApkDownloadModalPr
 
               {activeTab === 'android_pwa' && (
                 <div className="space-y-4">
-                  <div className="p-4.5 bg-emerald-550/5 dark:bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-center space-y-3">
-                    <span className="text-3xl block">📲</span>
-                    <h4 className="text-[12px] font-black text-emerald-650 dark:text-emerald-400">الإضافة الفورية لأندرويد (متصفح Chrome)</h4>
-                    <p className="text-[10.5px] text-gray-500 dark:text-gray-400 font-bold leading-relaxed">
-                      يمكنك تثبيت نسخة الويب كـ App مستقل سريع وخفيف ومزامن بنسبة 100% دون الحاجة لتنزيل ملفات الـ APK مسبقاً!
-                    </p>
-                  </div>
+                  {deferredPrompt ? (
+                    <div className="p-4.5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-center space-y-3 shadow-sm">
+                      <span className="text-3xl block animate-bounce">✨</span>
+                      <h4 className="text-[12px] font-black text-emerald-600 dark:text-emerald-400">تثبيت فوري بضغطة زر!</h4>
+                      <p className="text-[10.5px] text-gray-500 dark:text-gray-400 font-bold leading-relaxed">
+                        متصفحك يدعم التثبيت التلقائي والمباشر للـ PWA كأبليكيشن موبايل فائق على شاشتك الآن.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleInstallClick}
+                        className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-2xl text-[11px] font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20"
+                      >
+                         <Download className="w-4 h-4 animate-pulse" />
+                         تثبيت التطبيق على هاتفك الآن
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="p-4.5 bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-center space-y-3">
+                      <span className="text-3xl block">📲</span>
+                      <h4 className="text-[12px] font-black text-emerald-650 dark:text-emerald-400">الإضافة الفورية لأندرويد (متصفح Chrome)</h4>
+                      <p className="text-[10.5px] text-gray-500 dark:text-gray-400 font-bold leading-relaxed">
+                        يمكنك تثبيت نسخة الويب كـ App مستقل سريع وخفيف ومزامن بنسبة 100% دون الحاجة لتنزيل ملفات الـ APK مسبقاً!
+                      </p>
+                    </div>
+                  )}
 
                   <div className="p-4 bg-gray-50 dark:bg-[#161917]/50 rounded-2xl border border-gray-150 dark:border-white/5 space-y-2">
                     <h5 className="text-[11px] font-black text-gray-800 dark:text-gray-200">🤖 التثبيت الفوري لكروم:</h5>
