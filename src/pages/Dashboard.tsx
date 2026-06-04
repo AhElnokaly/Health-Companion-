@@ -4865,7 +4865,7 @@ export default function Dashboard() {
                            اضغط على الزر أدناه لتنزيل ملف الـ APK المباشر لهواتف أندرويد لتثبيت التطبيق كأيقونة مخصصة مستقلة تماماً عن المتصفحات وتنزيل الملف وحفظه:
                         </p>
                         <a 
-                          href="/api/download-apk"
+                          href="/health_companion.apk"
                           download="health_companion.apk"
                           className="inline-flex items-center gap-1.5 px-4.5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black shadow-sm shadow-blue-600/25 transition-all active:scale-95 cursor-pointer mt-1"
                         >

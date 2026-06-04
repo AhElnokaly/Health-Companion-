@@ -130,7 +130,7 @@ export default function ApkDownloadModal({ isOpen, onClose, deferredPrompt, setD
                       احصل على ملف تثبيت الـ <span className="text-blue-600 font-black">APK الرسمي المباشر</span> لتشغيل LifeCompanion على هاتفك بشكل مستقل تماماً، وبسرعة وسلاسة لا تضاهى.
                     </p>
                     <a
-                      href="/api/download-apk"
+                      href="/health_companion.apk"
                       download="health_companion.apk"
                       className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10.5px] font-black shadow-md shadow-blue-500/20 transition-all active:scale-95 cursor-pointer"
                     >
