@@ -1,0 +1,152 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and global settings",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "dailyWaterGoal": { "type": "number", "description": "Goal in ml" },
+        "dailyCalorieGoal": { "type": "number", "description": "Goal in kcal" },
+        "dailyProteinGoal": { "type": "number", "description": "Goal in grams" },
+        "dailyCarbGoal": { "type": "number", "description": "Goal in grams" },
+        "dailyFatGoal": { "type": "number", "description": "Goal in grams" },
+        "createdAt": { "type": "number", "description": "Server timestamp" },
+        "updatedAt": { "type": "number", "description": "Server timestamp" }
+      },
+      "required": ["email", "createdAt", "updatedAt"]
+    },
+    "Medication": {
+      "title": "Medication",
+      "description": "A medication to take",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "dosage": { "type": "number" },
+        "unit": { "type": "string" },
+        "form": { "type": "string" },
+        "type": { "type": "string", "enum": ["schedule", "prn"] },
+        "frequencyPerDay": { "type": "number" },
+        "instruction": { "type": "string" },
+        "inventory": { "type": "number" },
+        "autoRestock": { "type": "boolean" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["name", "type", "createdAt", "updatedAt"]
+    },
+    "MedicationLog": {
+      "title": "MedicationLog",
+      "description": "Log of taking a medication",
+      "type": "object",
+      "properties": {
+        "medicationId": { "type": "string" },
+        "takenAt": { "type": "number" },
+        "status": { "type": "string", "enum": ["taken", "skipped", "delayed"] }
+      },
+      "required": ["medicationId", "takenAt", "status"]
+    },
+    "WaterLog": {
+      "title": "WaterLog",
+      "description": "Log of drinking water",
+      "type": "object",
+      "properties": {
+        "amount": { "type": "number", "description": "Amount in ml" },
+        "context": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["amount", "timestamp"]
+    },
+    "DietLog": {
+      "title": "DietLog",
+      "description": "Log of a meal",
+      "type": "object",
+      "properties": {
+        "mealType": { "type": "string", "enum": ["breakfast", "lunch", "dinner", "snack"] },
+        "description": { "type": "string" },
+        "calories": { "type": "number" },
+        "protein": { "type": "number" },
+        "carbs": { "type": "number" },
+        "fats": { "type": "number" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["mealType", "description", "calories", "timestamp"]
+    },
+    "SleepLog": {
+      "title": "SleepLog",
+      "description": "Log of a night's sleep",
+      "type": "object",
+      "properties": {
+        "sleepStart": { "type": "number" },
+        "sleepEnd": { "type": "number" },
+        "quality": { "type": "number", "description": "Rating from 1 to 5" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["sleepStart", "sleepEnd", "createdAt"]
+    },
+    "SymptomLog": {
+      "title": "SymptomLog",
+      "description": "Log of symptoms",
+      "type": "object",
+      "properties": {
+        "painLevel": { "type": "number", "description": "1 to 10" },
+        "symptoms": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "notes": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["painLevel", "timestamp"]
+    },
+    "CycleLog": {
+      "title": "CycleLog",
+      "description": "Women's health cycle log",
+      "type": "object",
+      "properties": {
+        "startDate": { "type": "number" },
+        "endDate": { "type": "number" },
+        "flow": { "type": "string", "enum": ["light", "medium", "heavy", "spotting"] },
+        "notes": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["startDate", "timestamp"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User base document"
+    },
+    "users/{userId}/medications/{medicationId}": {
+      "schema": { "$ref": "#/entities/Medication" },
+      "description": "User's medications"
+    },
+    "users/{userId}/medicationLogs/{logId}": {
+      "schema": { "$ref": "#/entities/MedicationLog" },
+      "description": "Logs when medications are taken"
+    },
+    "users/{userId}/waterLogs/{logId}": {
+      "schema": { "$ref": "#/entities/WaterLog" },
+      "description": "Water drinking logs"
+    },
+    "users/{userId}/dietLogs/{logId}": {
+      "schema": { "$ref": "#/entities/DietLog" },
+      "description": "Diet and meal logs"
+    },
+    "users/{userId}/sleepLogs/{logId}": {
+      "schema": { "$ref": "#/entities/SleepLog" },
+      "description": "Sleep records"
+    },
+    "users/{userId}/symptoms/{symptomId}": {
+      "schema": { "$ref": "#/entities/SymptomLog" },
+      "description": "Symptom and pain logs"
+    },
+    "users/{userId}/cycleLogs/{logId}": {
+      "schema": { "$ref": "#/entities/CycleLog" },
+      "description": "Menstrual cycle and reproductive health logs"
+    }
+  }
+}

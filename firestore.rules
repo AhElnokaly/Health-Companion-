@@ -1,0 +1,234 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Phase 3: Primitive Definition
+    function isValidId(id) { 
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+
+    match /{document=**} { 
+      allow read, write: if false; 
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['createdAt', 'updatedAt']) 
+          && data.size() >= 2 && data.size() <= 20
+          && (!('email' in data) || (data.email is string && data.email.size() <= 254))
+          && data.createdAt is number
+          && data.updatedAt is number
+          && (!('name' in data) || (data.name is string && data.name.size() <= 100))
+          && (!('onboardingCompleted' in data) || (data.onboardingCompleted is bool))
+          && (!('gender' in data) || (data.gender is string))
+          && (!('age' in data) || (data.age == null || data.age is number))
+          && (!('weight' in data) || (data.weight == null || data.weight is number))
+          && (!('height' in data) || (data.height == null || data.height is number))
+          && (!('goals' in data) || (data.goals is list))
+          && (!('targetWeight' in data) || (data.targetWeight == null || data.targetWeight is number))
+          && (!('targetSleep' in data) || (data.targetSleep == null || data.targetSleep is number))
+          && (!('dailyWaterGoal' in data) || (data.dailyWaterGoal is number))
+          && (!('dailyCalorieGoal' in data) || (data.dailyCalorieGoal is number))
+          && (!('dailyProteinGoal' in data) || (data.dailyProteinGoal is number))
+          && (!('dailyCarbGoal' in data) || (data.dailyCarbGoal is number))
+          && (!('dailyFatGoal' in data) || (data.dailyFatGoal is number));
+    }
+
+    function isValidMedication(data) {
+      return data.keys().hasAll(['name', 'type', 'createdAt', 'updatedAt'])
+        && data.size() >= 4 && data.size() <= 12
+        && data.name is string && data.name.size() <= 200
+        && data.type is string && (data.type == 'schedule' || data.type == 'prn')
+        && data.createdAt is number
+        && data.updatedAt is number
+        && (!('dosage' in data) || (data.dosage is number))
+        && (!('unit' in data) || (data.unit is string && data.unit.size() <= 50))
+        && (!('form' in data) || (data.form is string && data.form.size() <= 50))
+        && (!('frequencyPerDay' in data) || (data.frequencyPerDay is number))
+        && (!('instruction' in data) || (data.instruction is string && data.instruction.size() <= 500))
+        && (!('inventory' in data) || (data.inventory is number))
+        && (!('autoRestock' in data) || (data.autoRestock is bool));
+    }
+
+    function isValidMedicationLog(data) {
+       return data.keys().hasAll(['medicationId', 'takenAt', 'status'])
+         && data.size() == 3
+         && data.medicationId is string && data.medicationId.size() <= 128
+         && data.takenAt is number
+         && data.status is string && (data.status == 'taken' || data.status == 'skipped' || data.status == 'delayed');
+    }
+
+    function isValidWaterLog(data) {
+       return data.keys().hasAll(['amount', 'timestamp'])
+         && data.size() >= 2 && data.size() <= 3
+         && data.amount is number
+         && data.timestamp is number
+         && (!('context' in data) || (data.context is string && data.context.size() <= 200));
+    }
+
+    function isValidDietLog(data) {
+       return data.keys().hasAll(['mealType', 'description', 'calories', 'timestamp'])
+         && data.size() >= 4 && data.size() <= 7
+         && data.mealType is string && (data.mealType == 'breakfast' || data.mealType == 'lunch' || data.mealType == 'dinner' || data.mealType == 'snack')
+         && data.description is string && data.description.size() <= 500
+         && data.calories is number
+         && data.timestamp is number
+         && (!('protein' in data) || (data.protein is number))
+         && (!('carbs' in data) || (data.carbs is number))
+         && (!('fats' in data) || (data.fats is number));
+    }
+
+    function isValidSleepLog(data) {
+       return data.keys().hasAll(['sleepStart', 'sleepEnd', 'createdAt'])
+         && data.size() >= 3 && data.size() <= 5
+         && data.sleepStart is number
+         && data.sleepEnd is number
+         && data.createdAt is number
+         && (!('quality' in data) || (data.quality is number))
+         && (!('notes' in data) || (data.notes is string && data.notes.size() <= 500));
+    }
+
+    function isValidSymptomLog(data) {
+       return data.keys().hasAll(['painLevel', 'timestamp'])
+         && data.size() >= 2 && data.size() <= 4
+         && data.painLevel is number
+         && data.timestamp is number
+         && (!('symptoms' in data) || (data.symptoms is list && data.symptoms.size() <= 20 && (data.symptoms.size() == 0 || data.symptoms[0] is string)))
+         && (!('notes' in data) || (data.notes is string && data.notes.size() <= 500));
+    }
+
+    function isValidCycleLog(data) {
+       return data.keys().hasAll(['startDate', 'timestamp'])
+         && data.size() >= 2 && data.size() <= 5
+         && data.startDate is number
+         && data.timestamp is number
+         && (!('endDate' in data) || (data.endDate is number))
+         && (!('flow' in data) || (data.flow is string && (data.flow == 'light' || data.flow == 'medium' || data.flow == 'heavy' || data.flow == 'spotting')))
+         && (!('notes' in data) || (data.notes is string && data.notes.size() <= 500));
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false; // Users shouldn't query the users collection
+      
+      allow create: if isOwner(userId) && isValidId(userId)
+                    && isValidUser(incoming())
+                    && (!('email' in incoming()) || incoming().email == request.auth.token.email);
+                    
+      allow update: if isOwner(userId) && isValidId(userId)
+                    && isValidUser(incoming())
+                    && incoming().createdAt == existing().createdAt
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'updatedAt', 'dailyWaterGoal', 'dailyCalorieGoal', 'dailyProteinGoal', 'dailyCarbGoal', 'dailyFatGoal', 'onboardingCompleted', 'gender', 'age', 'weight', 'height', 'goals', 'targetWeight', 'targetSleep']);
+                    
+      allow delete: if false;
+
+      match /medications/{medicationId} {
+         allow get: if isOwner(userId) && isValidId(userId) && isValidId(medicationId);
+         allow list: if isOwner(userId) && isValidId(userId);
+         
+         allow create: if isOwner(userId) && isValidId(userId) && isValidId(medicationId)
+                       && isValidMedication(incoming())
+                       && incoming().createdAt == request.time.toMillis()
+                       && incoming().updatedAt == request.time.toMillis();
+                       
+         allow update: if isOwner(userId) && isValidId(userId) && isValidId(medicationId)
+                       && isValidMedication(incoming())
+                       && incoming().createdAt == existing().createdAt
+                       && incoming().updatedAt == request.time.toMillis()
+                       && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'type', 'dosage', 'unit', 'form', 'frequencyPerDay', 'instruction', 'inventory', 'autoRestock', 'updatedAt']);
+                       
+         allow delete: if isOwner(userId) && isValidId(userId) && isValidId(medicationId);
+      }
+
+      match /medicationLogs/{logId} {
+         allow get: if isOwner(userId) && isValidId(userId) && isValidId(logId);
+         allow list: if isOwner(userId) && isValidId(userId);
+         
+         allow create: if isOwner(userId) && isValidId(userId) && isValidId(logId)
+                       && isValidMedicationLog(incoming())
+                       && exists(/databases/$(database)/documents/users/$(userId)/medications/$(incoming().medicationId)); // Ensure med exists
+                       
+         allow update: if isOwner(userId) && isValidId(userId) && isValidId(logId)
+                       && isValidMedicationLog(incoming())
+                       && incoming().medicationId == existing().medicationId // Don't let them change medication reference
+                       && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'takenAt']);
+                       
+         allow delete: if isOwner(userId) && isValidId(userId) && isValidId(logId);
+      }
+
+      match /waterLogs/{logId} {
+         allow get: if isOwner(userId) && isValidId(userId) && isValidId(logId);
+         allow list: if isOwner(userId) && isValidId(userId);
+         
+         allow create: if isOwner(userId) && isValidId(userId) && isValidId(logId)
+                       && isValidWaterLog(incoming());
+                       
+         allow update: if isOwner(userId) && isValidId(userId) && isValidId(logId)
+                       && isValidWaterLog(incoming())
+                       && incoming().diff(existing()).affectedKeys().hasOnly(['amount', 'context', 'timestamp']);
+         
+         allow delete: if isOwner(userId) && isValidId(userId) && isValidId(logId);
+      }
+
+      match /dietLogs/{logId} {
+         allow get: if isOwner(userId) && isValidId(userId) && isValidId(logId);
+         allow list: if isOwner(userId) && isValidId(userId);
+         
+         allow create: if isOwner(userId) && isValidId(userId) && isValidId(logId)
+                       && isValidDietLog(incoming());
+                       
+         allow update: if isOwner(userId) && isValidId(userId) && isValidId(logId)
+                       && isValidDietLog(incoming())
+                       && incoming().diff(existing()).affectedKeys().hasOnly(['mealType', 'description', 'calories', 'protein', 'carbs', 'fats', 'timestamp']);
+                       
+         allow delete: if isOwner(userId) && isValidId(userId) && isValidId(logId);
+      }
+
+      match /sleepLogs/{logId} {
+         allow get: if isOwner(userId) && isValidId(userId) && isValidId(logId);
+         allow list: if isOwner(userId) && isValidId(userId);
+         
+         allow create: if isOwner(userId) && isValidId(userId) && isValidId(logId)
+                       && isValidSleepLog(incoming())
+                       && incoming().createdAt == request.time.toMillis();
+                       
+         allow update: if isOwner(userId) && isValidId(userId) && isValidId(logId)
+                       && isValidSleepLog(incoming())
+                       && incoming().createdAt == existing().createdAt
+                       && incoming().diff(existing()).affectedKeys().hasOnly(['sleepStart', 'sleepEnd', 'quality', 'notes']);
+                       
+         allow delete: if isOwner(userId) && isValidId(userId) && isValidId(logId);
+      }
+
+      match /symptoms/{symptomId} {
+         allow get: if isOwner(userId) && isValidId(userId) && isValidId(symptomId);
+         allow list: if isOwner(userId) && isValidId(userId);
+         
+         allow create: if isOwner(userId) && isValidId(userId) && isValidId(symptomId)
+                       && isValidSymptomLog(incoming());
+                       
+         allow update: if isOwner(userId) && isValidId(userId) && isValidId(symptomId)
+                       && isValidSymptomLog(incoming())
+                       && incoming().diff(existing()).affectedKeys().hasOnly(['painLevel', 'symptoms', 'notes', 'timestamp']);
+                       
+         allow delete: if isOwner(userId) && isValidId(userId) && isValidId(symptomId);
+      }
+
+      match /cycleLogs/{logId} {
+         allow get: if isOwner(userId) && isValidId(userId) && isValidId(logId);
+         allow list: if isOwner(userId) && isValidId(userId);
+         
+         allow create: if isOwner(userId) && isValidId(userId) && isValidId(logId)
+                       && isValidCycleLog(incoming());
+                       
+         allow update: if isOwner(userId) && isValidId(userId) && isValidId(logId)
+                       && isValidCycleLog(incoming())
+                       && incoming().diff(existing()).affectedKeys().hasOnly(['startDate', 'endDate', 'flow', 'notes', 'timestamp']);
+                       
+         allow delete: if isOwner(userId) && isValidId(userId) && isValidId(logId);
+      }
+    }
+  }
+}

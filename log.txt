@@ -1,0 +1,915 @@
+1 0 import React, { useState, useEffect, useMemo } from 'react';
+2 0 import { motion, AnimatePresence } from 'motion/react';
+3 0 import {
+4 0 ChevronRight, ChevronLeft, CalendarHeart, Sparkles, PlusCircle, Baby, CheckCircle2,
+5 0 Droplets, Brain, Salad, Activity, Moon, Info, Calendar as CalendarIcon,
+6 0 Bell, Home, Compass, Users, TrendingUp, HeartPulse, MessageCircle, Eye, EyeOff, Trash2, Coffee, ArrowDownToLine, Search
+7 0 } from 'lucide-react';
+8 0 import { useNavigate, Link, useLocation } from 'react-router-dom';
+9 0 import { cn } from '../lib/utils';
+10 0 import { useAuth } from '../context/AuthContext';
+11 0 import { useAppContext } from '../context/AppContext';
+12 0 import { ExpandableCard } from '../components/ExpandableCard';
+13 0 import { ARTICLES, ArticleData } from '../data/womensHealthArticles';
+14 0 import { collection, query, onSnapshot, addDoc, updateDoc, doc, deleteDoc, setDoc } from 'firebase/firestore';
+15 0 import { db } from '../lib/firebase';
+16 0 import { handleFirestoreError, OperationType } from '../lib/firestore-error-handler';
+17 0 import { AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+18 0 
+19 0 type HormonePhase = 'menstrual' | 'follicular' | 'ovulation' | 'luteal' | 'pregnancy' | 'postpartum';
+20 0 
+21 0 interface CycleLog {
+22 0 id: string;
+23 0 startDate: number;
+24 0 endDate: number | null;
+25 0 status: 'period' | 'pregnancy' | 'postpartum';
+26 0 }
+27 0 
+28 0 const PHASE_DETAILS = {
+29 0 menstrual: {
+30 0 name: 'فترة الحيض',
+31 0 color: '#C2185B', // Rose Primary
+32 0 twColor: 'text-[#C2185B]',
+33 0 bg: 'bg-[#C2185B]',
+34 0 lightBg: 'bg-[#C2185B]/10',
+35 0 desc: 'مستوى الهرمونات في أدنى مستوياته. طاقة منخفضة ووقت مثالي للراحة والاستبطان.',
+36 0 nutrition: 'الحديد، فيتامين C، الماغنسيوم (سبانخ، لحوم حمراء، شيكولاتة داكنة).',
+37 0 exercise: 'تمارين تمدد خفيفة، مشي هادئ، يوجا استرخائية.',
+38 0 islamic: 'إعفاء رباني من الصلاة والصيام. فرصة رائعة للذكر والدعاء والتأمل.',
+39 0 symptoms: ['تقلصات', 'إرهاق', 'رغبة في الانعزال']
+40 0 },
+41 0 follicular: {
+42 0 name: 'الطور الجريبي',
+43 0 color: '#7B1FA2', // Mauve
+44 0 twColor: 'text-[#7B1FA2]',
+45 0 bg: 'bg-[#7B1FA2]',
+46 0 lightBg: 'bg-[#7B1FA2]/10',
+47 0 desc: 'الاستراديول يرتفع. طاقة متزايدة، إبداع عالي، مزاج إيجابي وتفاؤل.',
+48 0 nutrition: 'بروتينات خفيفة، خضروات مخمرة، أطعمة تدعم استقلاب الإستروجين.',
+49 0 exercise: 'كارديو، تمارين قوة خفيفة إلى متوسطة، نشاط اجتماعي.',
+50 0 islamic: 'أيام طهر. التزام تام بالعبادات، استغلي نشاطك في النوافل.',
+51 0 symptoms: ['نشاط ذهني', 'تفاؤل', 'زيادة الإبداع']
+52 0 },
+53 0 ovulation: {
+54 0 name: 'فترة التبويض',
+55 0 color: '#F57F17', // Gold
+56 0 twColor: 'text-[#F57F17]',
+57 0 bg: 'bg-[#F57F17]',
+58 0 lightBg: 'bg-[#F57F17]/10',
+59 0 desc: 'ذروة الإستروجين وتزايد التستوستيرون. طاقة في أعلى مستوياتها، ثقة وتواصل اجتماعي.',
+60 0 nutrition: 'مضادات أكسدة، ألياف لدعم التخلص من فائض الإستروجين (توت، بروكلي).',
+61 0 exercise: 'تمارين عالية الكثافة (HIIT)، رفع أثقال، طاقة هائلة للحركة.',
+62 0 islamic: 'أيام طهر. تأملي في آيات الخالق في تكوين الإنسان.',
+63 0 symptoms: ['ثقة بالنفس', 'طاقة عالية', 'ألم خفيف أسفل البطن']
+64 0 },
+65 0 luteal: {
+66 0 name: 'الطور اللوتيني',
+67 0 color: '#00796B', // Teal
+68 0 twColor: 'text-[#00796B]',
+69 0 bg: 'bg-[#00796B]',
+70 0 lightBg: 'bg-[#00796B]/10',
+71 0 desc: 'هيمنة البروجسترون. تباطؤ تدريجي للطاقة، رغبة في الترتيب والإنجاز الهادئ، احتمالية لمتلازمة ما قبل الطمث (PMS).',
+72 0 nutrition: 'كربوهيدرات معقدة لتنظيم السيروتونين، كالسيوم وماغنسيوم (شوفان، مكسرات).',
+73 0 exercise: 'يوجا، بيلاتس، السباحة. تجنبي الإجهاد العالي.',
+74 0 islamic: 'أيام طهر. قد تتقلب مشاعرك، استعيني بالصلاة والدعاء لتسكين القلق.',
+75 0 symptoms: ['تقلبات مزاجية', 'انتفاخ', 'تشوش ذهني (Brain Fog)']
+76 0 },
+77 0 pregnancy: {
+78 0 name: 'رحلة الحمل',
+79 0 color: '#4F46E5', // Indigo
+80 0 twColor: 'text-indigo-600',
+81 0 bg: 'bg-indigo-600',
+82 0 lightBg: 'bg-indigo-50',
+83 0 desc: 'مرحلة تكوين حياة جديدة. الرعاية تتركز على دعم النمو وتقليل أعراض الوحام.',
+84 0 nutrition: 'حمض الفوليك، الكالسيوم، بروتين عالي الجودة، ترطيب مستمر.',
+85 0 exercise: 'مشي خفيف، يوجا الحوامل (بعد استشارة الطبيب).',
+86 0 islamic: 'رخصة إفطار رمضان إذا شق عليك، ثواب عظيم للصبر على مشقة الحمل.',
+87 0 symptoms: ['غثيان', 'تعب', 'تغيرات في الشهية']
+88 0 },
+89 0 postpartum: {
+90 0 name: 'فترة النفاس',
+91 0 color: '#0284C7', // Sky
+92 0 twColor: 'text-sky-600',
+93 0 bg: 'bg-sky-600',
+94 0 lightBg: 'bg-sky-50',
+95 0 desc: 'مرحلة استعادة العافية (الربع الرابع). التركيز على التئام الجروح، الرضاعة، والاستقرار النفسي.',
+96 0 nutrition: 'أطعمة دافئة ومغذية (شوربات، كولاجين)، حديد لتعويض الدم، مرطبات.',
+97 0 exercise: 'ممنوع المجهود. تمارين كيجل الخفيفة جداً متى سمح الطبيب.',
+98 0 islamic: 'إعفاء من الصلاة والصيام. استغلي الوقت في سماع القرآن والدعاء للمولود.',
+99 0 symptoms: ['آلام تقلصات', 'نزيف', 'تقلبات عاطفية قوية']
+100 0 }
+101 0 };
+102 0 
+103 0 export default function WomensHealth() {
+104 0 const navigate = useNavigate();
+105 0 const { user } = useAuth();
+106 0 const { isFastingMode, showWomensHealth, toggleWomensHealth } = useAppContext();
+107 0 const [logs, setLogs] = useState<CycleLog[]>([]);
+108 0 const [fastingLogs, setFastingLogs] = useState<{id: string, type: string, date: number}[]>([]);
+109 0 const [loading, setLoading] = useState(true);
+110 0 
+111 0 // Calendar State
+112 0 const [currentMonth, setCurrentMonth] = useState(new Date());
+113 0 const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+114 0 const [activeTab, setActiveTab] = useState<'home' | 'explore' | 'community' | 'progress'>('home');
+115 0 const [selectedArticle, setSelectedArticle] = useState<ArticleData | null>(null);
+116 0 const [activeMoods, setActiveMoods] = useState<string[]>(['Mood']);
+117 0 const [isPrivacyMode, setIsPrivacyMode] = useState(false);
+118 0 const [contraceptionMethod, setContraceptionMethod] = useState<string>('none');
+119 0 const [loggedDrinks, setLoggedDrinks] = useState<string[]>([]);
+120 0 const [isPlanStarted, setIsPlanStarted] = useState(false);
+121 0 
+122 0 const [searchQuery, setSearchQuery] = useState('');
+123 0 const [confirmState, setConfirmState] = useState<{
+124 0 isOpen: boolean;
+125 0 message: string;
+126 0 onConfirm: () => void;
+127 0 onCancel: () => void;
+128 0 confirmText?: string;
+129 0 cancelText?: string;
+130 0 } | null>(null);
+131 0 
+132 0 const confirm = (message: string, confirmText?: string, cancelText?: string): Promise<boolean> => {
+133 0 return new Promise((resolve) => {
+134 0 setConfirmState({
+135 0 isOpen: true,
+136 0 message,
+137 0 confirmText,
+138 0 cancelText,
+139 0 onConfirm: () => {
+140 0 setConfirmState(null);
+141 0 resolve(true);
+142 0 },
+143 0 onCancel: () => {
+144 0 setConfirmState(null);
+145 0 resolve(false);
+146 0 }
+147 0 });
+148 0 });
+149 0 };
+150 0 
+151 0 const toggleMood = (mood: string) => {
+152 0 setActiveMoods(prev => prev.includes(mood) ? prev.filter(m => m !== mood) : [...prev, mood]);
+153 0 };
+154 0 
+155 0 useEffect(() => {
+156 0 if (!user) return;
+157 0 const q1 = query(collection(db, 'users', user.uid, 'cycleLogs'));
+158 0 const unsubscribe1 = onSnapshot(q1, (snapshot) => {
+159 0 const loaded: CycleLog[] = [];
+160 0 snapshot.forEach(doc => {
+161 0 loaded.push({ id: doc.id, ...doc.data() } as CycleLog);
+162 0 });
+163 0 loaded.sort((a, b) => b.startDate - a.startDate);
+164 0 setLogs(loaded);
+165 0 setLoading(false);
+166 0 }, (error) => {
+167 0 handleFirestoreError(error, OperationType.GET, `users/${user.uid}/cycleLogs`);
+168 0 setLoading(false);
+169 0 });
+170 0 
+171 0 const q2 = query(collection(db, 'users', user.uid, 'fastingLogs'));
+172 0 const unsubscribe2 = onSnapshot(q2, (snapshot) => {
+173 0 const fl: any[] = [];
+174 0 snapshot.forEach(doc => fl.push({ id: doc.id, ...doc.data() }));
+175 0 setFastingLogs(fl);
+176 0 });
+177 0 
+178 0 const unsubscribe3 = onSnapshot(doc(db, 'users', user.uid, 'settings', 'womensHealth'), (docSnap) => {
+179 0 if (docSnap.exists()) {
+180 0 setContraceptionMethod(docSnap.data()?.contraceptionMethod || 'none');
+181 0 }
+182 0 });
+183 0 
+184 0 return () => { unsubscribe1(); unsubscribe2(); unsubscribe3(); };
+185 0 }, [user]);
+186 0 
+187 0 // Derive Current State
+188 0 const { phase, cycleDay, currentLog, isLate } = useMemo(() => {
+189 0 if (!logs.length) return { phase: 'follicular' as HormonePhase, cycleDay: 1, currentLog: null, isLate: false };
+190 0 
+191 0 const activePregnancy = logs.find(l => l.status === 'pregnancy' && !l.endDate);
+192 0 if (activePregnancy) return { phase: 'pregnancy' as HormonePhase, cycleDay: null, currentLog: activePregnancy, isLate: false };
+193 0 
+194 0 const activePostpartum = logs.find(l => l.status === 'postpartum' && !l.endDate);
+195 0 if (activePostpartum) return { phase: 'postpartum' as HormonePhase, cycleDay: null, currentLog: activePostpartum, isLate: false };
+196 0 
+197 0 const activePeriod = logs.find(l => l.status === 'period' && !l.endDate);
+198 0 const pastPeriods = logs.filter(l => l.status === 'period').sort((a,b) => b.startDate - a.startDate);
+199 0 const lastPeriod = pastPeriods[0];
+200 0 
+201 0 if (lastPeriod) {
+202 0 const today = new Date().setHours(0,0,0,0);
+203 0 const start = new Date(lastPeriod.startDate).setHours(0,0,0,0);
+204 0 const absDaysSince = Math.floor((today - start) / 86400000) + 1;
+205 0 
+206 0 if (activePeriod) {
+207 0 return { phase: 'menstrual' as HormonePhase, cycleDay: absDaysSince, currentLog: activePeriod, isLate: false };
+208 0 }
+209 0 
+210 0 // Predictive logic
+211 0 const late = absDaysSince > 35;
+212 0 const currentSubCycleDay = ((absDaysSince - 1) % 28) + 1;
+213 0 
+214 0 let calculatedPhase: HormonePhase = 'luteal';
+215 0 if (currentSubCycleDay >= 1 && currentSubCycleDay <= 5) calculatedPhase = 'menstrual';
+216 0 else if (currentSubCycleDay >= 10 && currentSubCycleDay <= 13) calculatedPhase = 'follicular';
+217 0 else if (currentSubCycleDay === 14) calculatedPhase = 'ovulation';
+218 0 
+219 0 return { phase: calculatedPhase, cycleDay: absDaysSince, currentLog: lastPeriod, isLate: late };
+220 0 }
+221 0 
+222 0 return { phase: 'follicular' as HormonePhase, cycleDay: 1, currentLog: null, isLate: false };
+223 0 }, [logs]);
+224 0 
+225 0 const phaseData = PHASE_DETAILS[phase];
+226 0 
+227 0 const handleAction = async (actionType: 'start_period' | 'end_period' | 'start_pregnancy' | 'end_pregnancy' | 'start_postpartum' | 'end_postpartum') => {
+228 0 if (!user) return;
+229 0 const now = selectedDate.getTime();
+230 0 try {
+231 0 if (actionType === 'start_period') {
+232 0 const hasPastPeriods = logs.some(l => l.status === 'period');
+233 0 if (hasPastPeriods && cycleDay !== null && cycleDay < 20) {
+234 0 const ok = await confirm(`لقد مر ${cycleDay - 1} يوم فقط على آخر دورة لكِ (يُفضل ألا تقل الدورة عن 20 يوماً). هل أنتِ متأكدة من تسجيل دورة جديدة الآن؟`, "نعم، متأكدة", "إلغاء");
+235 0 if (!ok) return;
+236 0 }
+237 0 const pd = logs.find(l => l.status === 'period' && !l.endDate);
+238 0 if (pd) await updateDoc(doc(db, 'users', user.uid, 'cycleLogs', pd.id), { endDate: now, timestamp: pd.timestamp || now });
+239 0 await addDoc(collection(db, 'users', user.uid, 'cycleLogs'), { startDate: now, endDate: null, status: 'period', timestamp: now });
+240 0 } else if (actionType === 'end_period' && currentLog) {
+241 0 const daysSinceStart = Math.floor((now - new Date(currentLog.startDate).setHours(0,0,0,0)) / 86400000) + 1;
+242 0 if (daysSinceStart < 3) {
+243 0 const isSpotting = await confirm(`لقد مر أقل من 3 أيام على بداية الدورة. هل كان هذا مجرد تبقيع/نزيف خفيف (Spotting) أم دورة حقيقية؟\n\n- لإلغاء الدورة واعتبارها تبقيع (سيتم مسح السجل): اضغطي نعم (تبقيع).\n- لاعتبارها دورة حقيقية منتهية: اضغطي لا (دورة).`, "نعم (تبقيع)", "لا (دورة)");
+244 0 if (isSpotting) {
+245 0 await deleteDoc(doc(db, 'users', user.uid, 'cycleLogs', currentLog.id));
+246 0 return;
+247 0 }
+248 0 }
+249 0 await updateDoc(doc(db, 'users', user.uid, 'cycleLogs', currentLog.id), { endDate: now, timestamp: currentLog.timestamp || now });
+250 0 } else if (actionType === 'start_pregnancy') {
+251 0 await addDoc(collection(db, 'users', user.uid, 'cycleLogs'), { startDate: now, endDate: null, status: 'pregnancy', timestamp: now });
+252 0 } else if (actionType === 'end_pregnancy' && currentLog) {
+253 0 await updateDoc(doc(db, 'users', user.uid, 'cycleLogs', currentLog.id), { endDate: now, timestamp: currentLog.timestamp || now });
+254 0 } else if (actionType === 'start_postpartum') {
+255 0 if (currentLog?.status === 'pregnancy') {
+256 0 await updateDoc(doc(db, 'users', user.uid, 'cycleLogs', currentLog.id), { endDate: now, timestamp: currentLog.timestamp || now });
+257 0 }
+258 0 await addDoc(collection(db, 'users', user.uid, 'cycleLogs'), { startDate: now, endDate: null, status: 'postpartum', timestamp: now });
+259 0 } else if (actionType === 'end_postpartum' && currentLog) {
+260 0 await updateDoc(doc(db, 'users', user.uid, 'cycleLogs', currentLog.id), { endDate: now, timestamp: currentLog.timestamp || now });
+261 0 }
+262 0 } catch (error) {
+263 0 handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/cycleLogs`);
+264 0 }
+265 0 };
+266 0 
+267 0 // Interactive Calendar Logic
+268 0 const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
+269 0 const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay(); // 0 is Sunday
+270 0 const prevMonthDays = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 0).getDate();
+271 0 
+272 0 // Ramadan Missed Days Calculation
+273 0 const getRamadanMissedDays = () => {
+274 0 let missed = 0;
+275 0 logs.forEach(log => {
+276 0 if (log.status === 'period' || log.status === 'postpartum') {
+277 0 const logStart = log.startDate;
+278 0 const logEnd = log.endDate || Date.now();
+279 0 const RAMADANS = [
+280 0 { start: new Date('2024-03-10').getTime(), end: new Date('2024-04-09').getTime() },
+281 0 { start: new Date('2025-02-28').getTime(), end: new Date('2025-03-30').getTime() },
+282 0 { start: new Date('2026-02-17').getTime(), end: new Date('2026-03-19').getTime() }
+283 0 ];
+284 0 RAMADANS.forEach(ramadan => {
+285 0 const overlapStart = Math.max(logStart, ramadan.start);
+286 0 const overlapEnd = Math.min(logEnd, ramadan.end);
+287 0 if (overlapStart < overlapEnd) {
+288 0 missed += Math.ceil((overlapEnd - overlapStart) / 86400000);
+289 0 }
+290 0 });
+291 0 }
+292 0 });
+293 0 return missed;
+294 0 };
+295 0 
+296 0 if (loading) return null;
+297 0 
+298 0 return (
+299 1 <div className={cn("min-h-full pb-10 text-right bg-[#FAFAFA] dark:bg-[#121415] transition-colors duration-1000", isFastingMode ? "bg-black dark:bg-black text-amber-50" : "")}>
+300 1 
+301 1 {/* Header */}
+302 2 <div className="px-6 pt-10 pb-6 bg-white dark:bg-[#1A1A1A] border-b border-[#F0EBE1] dark:border-white/5 relative z-10 rounded-b-[40px] shadow-[0_4px_24px_-12px_rgba(0,0,0,0.05)]">
+303 3 <div className="flex justify-between items-center mb-4 flex-row-reverse">
+304 3 <button onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-center text-gray-500 active:scale-95 transition-all">
+305 3 <ChevronRight className="w-6 h-6" />
+306 3 </button>
+307 4 <div className="text-center">
+308 4 <h1 className="text-xl font-bold flex justify-center items-center gap-1 tracking-tight text-[#1A1A2E] dark:text-white">
+309 4 Woman Companion
+310 4 </h1>
+311 4 <h2 className="text-lg font-black text-[#1A1A2E] dark:text-white mt-1">رفيقة المرأة 🌸</h2>
+312 3 </div>
+313 4 <div className="flex gap-2 relative">
+314 4 <button onClick={() => setIsPrivacyMode(!isPrivacyMode)} className="w-10 h-10 flex items-center justify-center text-gray-500 active:scale-95 transition-all">
+315 4 {isPrivacyMode ? <EyeOff className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
+316 4 </button>
+317 3 </div>
+318 2 </div>
+319 2 
+320 2 {/* Global Settings */}
+321 3 <div className="flex justify-between items-center gap-2 mb-6 flex-row-reverse px-2">
+322 3 <button
+323 3 onClick={toggleWomensHealth}
+324 3 className={cn(
+325 3 "flex-1 flex gap-2 items-center justify-center text-[10px] font-bold p-2 rounded-xl transition-all shadow-sm border",
+326 3 showWomensHealth
+327 3 ? "bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-900/20 dark:text-pink-300 dark:border-pink-900/50"
+328 3 : "bg-gray-50 text-gray-500 border-gray-200 dark:bg-white/5 dark:text-gray-400 dark:border-white/10"
+329 3 )}
+330 3 >
+331 3 {showWomensHealth ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+332 3 {showWomensHealth ? "إخفاء من الفوتر" : "إظهار في الفوتر"}
+333 3 </button>
+334 3 <button
+335 3 onClick={handleDeleteData}
+336 3 className="flex-1 flex gap-2 items-center justify-center text-[10px] font-bold p-2 rounded-xl bg-red-50 text-red-600 border border-red-200 shadow-sm transition-all hover:bg-red-100 active:scale-95 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/50"
+337 3 >
+338 3 <Trash2 className="w-3.5 h-3.5" />
+339 3 مسح البيانات
+340 3 </button>
+341 2 </div>
+342 2 
+343 2 {/* Top Navigation Tabs */}
+344 3 <div className="flex justify-between items-center bg-gray-50 dark:bg-white/5 p-1 rounded-[18px] mx-auto w-full mb-6 border border-gray-100 dark:border-white/10" dir="rtl">
+345 3 <button onClick={() => setActiveTab('home')} className={cn("flex-1 py-2 px-1 rounded-[14px] flex flex-col items-center gap-1 transition-all", activeTab === 'home' ? "bg-white dark:bg-[#2A2A2A] shadow-sm text-[#C2185B]" : "text-gray-500 hover:text-gray-700 dark:text-gray-400")}>
+346 3 <Home className="w-4 h-4" />
+347 3 <span className="text-[9px] font-bold">الرئيسية</span>
+348 3 </button>
+349 3 <button onClick={() => setActiveTab('explore')} className={cn("flex-1 py-2 px-1 rounded-[14px] flex flex-col items-center gap-1 transition-all", activeTab === 'explore' ? "bg-white dark:bg-[#2A2A2A] shadow-sm text-[#C2185B]" : "text-gray-500 hover:text-gray-700 dark:text-gray-400")}>
+350 3 <Compass className="w-4 h-4" />
+351 3 <span className="text-[9px] font-bold">الاستكشاف</span>
+352 3 </button>
+353 3 <button onClick={() => setActiveTab('community')} className={cn("flex-1 py-2 px-1 rounded-[14px] flex flex-col items-center gap-1 transition-all", activeTab === 'community' ? "bg-white dark:bg-[#2A2A2A] shadow-sm text-[#C2185B]" : "text-gray-500 hover:text-gray-700 dark:text-gray-400")}>
+354 3 <Users className="w-4 h-4" />
+355 3 <span className="text-[9px] font-bold">المجتمع</span>
+356 3 </button>
+357 3 <button onClick={() => setActiveTab('progress')} className={cn("flex-1 py-2 px-1 rounded-[14px] flex flex-col items-center gap-1 transition-all", activeTab === 'progress' ? "bg-white dark:bg-[#2A2A2A] shadow-sm text-[#C2185B]" : "text-gray-500 hover:text-gray-700 dark:text-gray-400")}>
+358 3 <TrendingUp className="w-4 h-4" />
+359 3 <span className="text-[9px] font-bold">التقدم</span>
+360 3 </button>
+361 2 </div>
+362 2 
+363 3 <div className={cn("transition-all duration-500", isPrivacyMode && "blur-lg select-none pointer-events-none")}>
+364 3 {activeTab === 'home' && (
+365 3 <>
+366 4 <div className="text-center mb-6">
+367 4 <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
+368 4 دورتك الحالية: {phaseData.name} <span className="text-gray-400 font-normal inline-block mr-1 text-[10px] bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded-full">(الاستعداد)</span>
+369 4 </p>
+370 4 {/* Mini timeline indicator */}
+371 5 <div className="w-full max-w-[200px] mx-auto mt-3 h-2 bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden flex flex-row-reverse">
+372 5 <div className="bg-[#C2185B] h-full" style={{width: '20%'}}></div>
+373 5 <div className="bg-[#7B1FA2] h-full" style={{width: '25%'}}></div>
+374 5 <div className="bg-[#F57F17] h-full" style={{width: '10%'}}></div>
+375 5 <div className="bg-[#00796B] h-full" style={{width: '45%'}}></div>
+376 4 </div>
+377 5 <div className="flex justify-between text-[8px] font-bold text-gray-400 w-full max-w-[200px] mx-auto mt-1 flex-row-reverse">
+378 5 <span>حيض</span>
+379 5 <span>جريبي</span>
+380 5 <span>تبويض</span>
+381 5 <span>لوتيني</span>
+382 4 </div>
+383 3 </div>
+384 3 
+385 3 {/* Phase Progress UI */}
+386 4 <div className="flex flex-col items-center justify-center mt-4">
+387 5 <div className="relative w-[220px] h-[220px] flex items-center justify-center">
+388 5 {/* SVG Ring Background */}
+389 5 <svg className="w-full h-full transform rotate-180 absolute inset-0">
+390 5 <circle cx="110" cy="110" r="90" stroke="currentColor" strokeWidth="18" fill="transparent" className="text-gray-100 dark:text-white/5" />
+391 5 {cycleDay !== null && (
+392 5 <circle cx="110" cy="110" r="90" stroke={phaseData.color} strokeWidth="18" fill="transparent"
+393 5 strokeDasharray={2 * Math.PI * 90}
+394 5 strokeDashoffset={2 * Math.PI * 90 - (((isLate ? 28 : (cycleDay || 1)) / 28) * (2 * Math.PI * 90))}
+395 5 strokeLinecap="round"
+396 5 className="transition-all duration-1000 ease-out"
+397 5 />
+398 5 )}
+399 5 </svg>
+400 6 <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+401 6 {isLate ? (
+402 7 <div className="bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 p-3 rounded-full mb-2 animate-bounce">
+403 7 <CalendarIcon className="w-6 h-6" />
+404 6 </div>
+405 6 ) : (
+406 6 <Sparkles className="w-6 h-6 text-gray-300 dark:text-gray-600 mb-2" />
+407 6 )}
+408 6 <div className="text-4xl font-black tracking-tighter text-[#1A1A2E] dark:text-white">{isLate ? '?؟' : cycleDay}</div>
+409 6 <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">{isLate ? 'تأخر الدورة' : 'اليوم الحالي'}</div>
+410 5 </div>
+411 4 </div>
+412 3 </div>
+413 3 
+414 3 {/* Dynamic Tips & Interventions */}
+415 4 <div className="px-6 mt-8">
+416 5 <div className={cn("p-4 rounded-[24px] shadow-sm border text-right transition-colors duration-500", phaseData.bg, phaseData.borderColor)}>
+417 5 <h3 className={cn("font-bold text-sm mb-2 flex items-center justify-end gap-1.5", phaseData.textColor)}>
+418 5 رسالة لكِ هذا الأسبوع
+419 5 </h3>
+420 5 <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-medium">
+421 5 {phaseData.advice}
+422 5 </p>
+423 4 </div>
+424 3 </div>
+425 3 
+426 3 {/* Fasting Info - If Ramadan mode enabled globally */}
+427 3 {isFastingMode && typeof getRamadanMissedDays === 'function' && (
+428 4 <div className="px-6 mt-6">
+429 5 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30 rounded-[24px] p-5 shadow-sm text-right flex flex-row-reverse gap-4">
+430 6 <div className="w-12 h-12 bg-white dark:bg-[#1A1A1A] rounded-full flex items-center justify-center shrink-0 border border-amber-50 dark:border-white/5 shadow-sm text-amber-500">
+431 6 <Moon className="w-6 h-6" />
+432 5 </div>
+433 6 <div className="flex-1 flex flex-col justify-center">
+434 6 <h4 className="font-bold text-sm text-amber-900 dark:text-amber-300 mb-1">أيام الإفطار في رمضان</h4>
+435 6 <p className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">إجمالي الأيام المتبقية عليكِ قضاؤها: <span className="font-bold text-lg">{getRamadanMissedDays()}</span> أيام</p>
+436 5 </div>
+437 4 </div>
+438 3 </div>
+439 3 )}
+440 3 
+441 3 {/* Quick Log Buttons Container */}
+442 4 <div className="px-6 mt-8 mb-6">
+443 4 <h3 className="font-bold text-[#1A1A2E] dark:text-white text-right mb-4">تسجيل سريع</h3>
+444 4 
+445 5 <div className="bg-white dark:bg-[#1A1A1A] border border-[#F0EBE1] dark:border-white/5 rounded-[24px] p-4 shadow-sm mb-4">
+446 5 <p className="text-[10px] font-bold text-gray-500 text-right mb-3">كيف تشعرين اليوم؟</p>
+447 6 <div className="flex flex-wrap justify-end gap-2" dir="rtl">
+448 6 <button onClick={() => toggleMood('Mood')} className={cn("flex flex-col items-center gap-1 transition-all", !activeMoods.includes('Mood') && "opacity-40")}>
+449 6 <Sparkles className="w-4 h-4 text-pink-500" />
+450 6 <span className="text-[8px] font-bold text-gray-800 dark:text-white">Mood</span>
+451 6 </button>
+452 6 <button onClick={() => toggleMood('Energy')} className={cn("flex flex-col items-center gap-1 transition-all", !activeMoods.includes('Energy') && "opacity-40")}>
+453 6 <Activity className="w-4 h-4 text-orange-500" />
+454 6 <span className="text-[8px] font-bold text-gray-800 dark:text-white">Energy</span>
+455 6 </button>
+456 6 <button onClick={() => toggleMood('Pain')} className={cn("flex flex-col items-center gap-1 transition-all", !activeMoods.includes('Pain') && "opacity-40")}>
+457 6 <Brain className="w-4 h-4 text-teal-500" />
+458 6 <span className="text-[8px] font-bold text-gray-800 dark:text-white">Pain</span>
+459 6 </button>
+460 5 </div>
+461 4 </div>
+462 3 </div>
+463 3 
+464 3 {/* Pamper Yourself Card */}
+465 4 <div className="px-6">
+466 5 <div className="bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/20 rounded-[24px] p-5 shadow-sm text-right flex flex-col gap-4">
+467 5 <h4 className="font-bold text-sm text-[#C2185B] dark:text-rose-400 mb-1 flex items-center justify-end gap-2">
+468 5 دللي نفسك <Coffee className="w-4 h-4" />
+469 5 </h4>
+470 5 <p className="text-[11px] text-gray-600 dark:text-gray-400 font-medium mb-1 leading-relaxed">
+471 5 استرخي بمشروب دافئ ومريح. سيتم تسجيله تلقائياً في سجلات المياه!
+472 5 </p>
+473 6 <div className="grid grid-cols-3 gap-2" dir="rtl">
+474 6 {[
+475 6 { id: 'mint', name: 'نعناع', icon: '🌿', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100/50 dark:bg-emerald-500/20' },
+476 6 { id: 'ginger', name: 'زنجبيل', icon: '🫚', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100/50 dark:bg-amber-500/20' },
+477 6 { id: 'chamomile', name: 'بابونج', icon: '🌼', color: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-100/50 dark:bg-yellow-500/20' }
+478 6 ].map(drink => {
+479 6 const isLogged = loggedDrinks.includes(drink.id);
+480 6 return (
+481 6 <button
+482 6 key={drink.id}
+483 6 disabled={isLogged}
+484 6 onClick={async () => {
+485 6 if (isLogged) return;
+486 6 setLoggedDrinks(prev => [...prev, drink.id]);
+487 6 // alert(`تم تسجيل كوب ${drink.name} (250 مل) في متتبع المياه! تقبل الله.`);
+488 6 }}
+489 6 className={cn("py-3 px-1 rounded-2xl border flex flex-col items-center justify-center gap-1.5 transition-all shadow-sm", isLogged ? "bg-gray-100/50 dark:bg-white/5 border-gray-200 dark:border-white/10 opacity-70 cursor-not-allowed" : cn(drink.bg, "border-white/50 dark:border-white/5 hover:scale-105 active:scale-95"))}
+490 6 >
+491 6 <span className="text-xl">{isLogged ? '✅' : drink.icon}</span>
+492 6 <span className={cn("text-[10px] font-bold", isLogged ? "text-gray-500 font-medium" : drink.color)}>{isLogged ? 'مسجل' : drink.name}</span>
+493 6 </button>
+494 6 );})}
+495 5 </div>
+496 4 </div>
+497 3 </div>
+498 3 
+499 3 {/* Global Interactive Calendar Widget */}
+500 4 <div className="px-6 mt-8 mb-6">
+501 4 <h3 className="font-bold text-[#1A1A2E] dark:text-white text-right mb-4">السجل الذكي</h3>
+502 5 <div className="bg-white dark:bg-[#1A1A1A] border border-[#F0EBE1] dark:border-white/5 rounded-[24px] p-5 shadow-sm w-full relative overflow-hidden">
+503 5 <div className="absolute top-0 right-0 w-24 h-24 bg-[#C2185B]/5 rounded-bl-[100px] -z-0"></div>
+504 5 
+505 5 {isLate && (
+506 6 <div className="mb-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 p-3 rounded-[16px] text-right">
+507 6 <p className="text-amber-800 dark:text-amber-400 text-xs font-bold mb-2 flex items-center justify-end gap-1"><CalendarIcon className="w-4 h-4"/> تأخر ملحوظ في الدورة</p>
+508 6 <p className="text-amber-700 dark:text-amber-500 text-[10px] leading-relaxed mb-3">لقد مر أكثر من 35 يوماً على آخر دورة لكِ، هل هناك احتمال لوجود حمل؟ أم أنه مجرد تأخر؟</p>
+509 7 <div className="flex gap-2 justify-end">
+510 7 <button onClick={() => handleAction('start_period')} className="flex-1 p-2 rounded-xl bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 font-bold text-[10px] transition-all hover:bg-amber-200">
+511 7 بدء دورة جديدة
+512 7 </button>
+513 7 <button onClick={() => handleAction('start_pregnancy')} className="flex-1 p-2 rounded-xl bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/30 font-bold text-[10px] transition-all hover:bg-rose-100">
+514 7 نعم، تسجيل حمل
+515 7 </button>
+516 6 </div>
+517 5 </div>
+518 5 )}
+519 5 
+520 6 <div className="grid grid-cols-2 gap-2" dir="rtl">
+521 6 {(phase === 'menstrual' || phase === 'follicular' || phase === 'ovulation' || phase === 'luteal') && (
+522 6 <>
+523 6 {currentLog?.status === 'period' && !currentLog.endDate ? (
+524 6 <button style={{ gridColumn: 'span 2' }} onClick={() => handleAction('end_period')} className="p-2.5 rounded-[16px] bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 font-bold text-[10px] flex items-center justify-center gap-1.5 border border-rose-100 dark:border-rose-900/30 transition-all hover:bg-rose-100">
+525 6 <CheckCircle2 className="w-3.5 h-3.5" /> انتهاء الدورة
+526 6 </button>
+527 6 ) : (
+528 6 <>
+529 6 <button onClick={() => handleAction('start_period')} className="p-2.5 rounded-[16px] bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 font-bold text-[10px] flex items-center justify-center gap-1.5 border border-rose-100 dark:border-rose-900/30 transition-all hover:bg-rose-100">
+530 6 <PlusCircle className="w-3.5 h-3.5" /> بدء الدورة
+531 6 </button>
+532 6 <button onClick={() => handleAction('start_pregnancy')} className="p-2.5 rounded-[16px] bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 font-bold text-[10px] flex items-center justify-center gap-1.5 border border-indigo-100 dark:border-indigo-900/30 transition-all hover:bg-indigo-100">
+533 6 <Baby className="w-3.5 h-3.5" /> تسجيل حمل
+534 6 </button>
+535 6 </>
+536 6 )}
+537 6 </>
+538 6 )}
+539 6 
+540 6 {phase === 'pregnancy' && (
+541 6 <>
+542 6 <button onClick={() => handleAction('start_postpartum')} className="p-2.5 rounded-[16px] bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400 font-bold text-[10px] flex items-center justify-center gap-1.5 border border-sky-100 dark:border-sky-900/30 transition-all hover:bg-sky-100">
+543 6 <Baby className="w-3.5 h-3.5" /> تسجيل ولادة
+544 6 </button>
+545 6 <button onClick={() => handleAction('end_pregnancy')} className="p-2.5 rounded-[16px] bg-gray-50 text-gray-600 dark:bg-white/5 dark:text-gray-300 font-bold text-[10px] flex items-center justify-center gap-1.5 border border-gray-200 dark:border-white/10 transition-all hover:bg-gray-100">
+546 6 إلغاء فترة الحمل
+547 6 </button>
+548 6 </>
+549 6 )}
+550 6 
+551 6 {phase === 'postpartum' && (
+552 6 <>
+553 6 <button onClick={() => handleAction('end_postpartum')} className="p-2.5 rounded-[16px] bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 font-bold text-[10px] flex items-center justify-center gap-1.5 border border-emerald-100 dark:border-emerald-900/30 transition-all hover:bg-emerald-100">
+554 6 <CheckCircle2 className="w-3.5 h-3.5" /> انتهاء النفاس
+555 6 </button>
+556 6 <button onClick={() => handleAction('start_period')} className="p-2.5 rounded-[16px] bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 font-bold text-[10px] flex items-center justify-center gap-1.5 border border-rose-100 dark:border-rose-900/30 transition-all hover:bg-rose-100">
+557 6 <PlusCircle className="w-3.5 h-3.5" /> عودة الدورة
+558 6 </button>
+559 6 </>
+560 6 )}
+561 5 </div>
+562 4 </div>
+563 3 </div>
+564 3 </>
+565 3 )}
+566 3 
+567 3 {activeTab === 'explore' && (
+568 4 <div className="px-6 mt-4 space-y-6 text-right animate-in fade-in slide-in-from-bottom-2" dir="rtl">
+569 4 
+570 4 {selectedArticle ? (
+571 5 <div className="bg-white dark:bg-[#1A1A1A] border border-gray-100 dark:border-white/5 rounded-[24px] p-5 shadow-sm relative overflow-hidden">
+572 5 <button onClick={() => setSelectedArticle(null)} className="mb-4 w-8 h-8 rounded-full bg-gray-100 dark:bg-[#2A2A2A] text-gray-600 dark:text-gray-300 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-[#3A3A3A] transition-all">
+573 5 <ChevronRight className="w-5 h-5" />
+574 5 </button>
+575 5 <img src={selectedArticle.thumb} alt={selectedArticle.title} className="w-full h-40 object-cover rounded-[16px] mb-4" />
+576 5 <span className={cn("text-[10px] font-bold px-2.5 py-1 rounded-full mb-3 inline-block", selectedArticle.bg, selectedArticle.color)}>{selectedArticle.cat}</span>
+577 5 <h3 className="font-bold text-lg text-gray-800 dark:text-gray-100 mb-2 leading-snug">{selectedArticle.title}</h3>
+578 6 <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-4 flex items-center gap-2">
+579 6 <span>{selectedArticle.mins} دقائق للقراءة</span>
+580 5 </div>
+581 6 <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed font-medium whitespace-pre-wrap">
+582 6 {selectedArticle.content}
+583 5 </div>
+584 4 </div>
+585 4 ) : (
+586 4 <>
+587 4 <h3 className="font-bold text-lg text-[#1A1A2E] dark:text-white mb-2">الاستكشاف والتثقيف</h3>
+588 4 
+589 4 {/* Search Bar */}
+590 5 <div className="relative mb-6">
+591 5 <input
+592 5 type="text"
+593 5 value={searchQuery}
+594 5 onChange={(e) => setSearchQuery(e.target.value)}
+595 5 placeholder="ابحثي عن مقالات، أعراض، أو نصائح..."
+596 5 className={cn("w-full pl-4 pr-12 py-3.5 rounded-2xl text-sm transition-all border outline-none shadow-sm", isFastingMode ? "bg-[#1A1A1A] border-[#3D3834] text-white focus:border-amber-500" : "bg-white border-gray-100 dark:bg-[#1A1A1A] dark:border-white/10 dark:text-white focus:border-pink-300 dark:focus:border-pink-500/50")}
+597 5 />
+598 5 <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+599 4 </div>
+600 4 
+601 4 {/* Ask AI Mini Card */}
+602 5 <div
+603 5 onClick={async () => {
+604 5 const aiPrompt = window.prompt('أهلا بكِ، أنا المساعدة الذكية. كيف يمكنني مساعدتك اليوم؟', '');
+605 5 if (aiPrompt) {
+606 5 // alert(`تلقيت سؤالك: "${aiPrompt}". جاري البحث والتحليل وسأرسل لك الإجابة قريباً.`);
+607 5 }
+608 5 }}
+609 5 className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 border border-blue-100 dark:border-blue-900/30 rounded-[24px] p-5 shadow-sm text-right flex flex-row-reverse gap-4 items-center cursor-pointer transition-all hover:scale-[1.02] active:scale-95"
+610 5 >
+611 6 <div className="w-12 h-12 bg-white dark:bg-[#1A1A1A] rounded-full flex items-center justify-center shrink-0 border border-blue-50 dark:border-white/5 shadow-sm text-blue-500">
+612 6 <MessageCircle className="w-6 h-6" />
+613 5 </div>
+614 6 <div className="flex-1">
+615 6 <h4 className="font-bold text-sm text-blue-900 dark:text-blue-300 mb-1">اسألي المساعدة الذكية</h4>
+616 6 <p className="text-[10px] text-gray-600 dark:text-gray-400 font-medium leading-relaxed">
+617 6 لديكِ سؤال طبي أو تبحثين عن نصيحة مخصصة؟ اسألي الآن.
+618 6 </p>
+619 5 </div>
+620 5 <ChevronLeft className="w-5 h-5 text-blue-300" />
+621 4 </div>
+622 4 
+623 5 <div className="mt-6 mb-2">
+624 5 <h4 className="font-bold text-sm text-[#1A1A2E] dark:text-white mb-3 flex justify-between items-center">
+625 5 <span>مقالات تهمك</span>
+626 5 </h4>
+627 6 <div className="space-y-3 pb-[100px]">
+628 6 {ARTICLES.filter(art => searchQuery.trim() === '' || art.title.includes(searchQuery) || art.cat.includes(searchQuery)).map((art) => (
+629 7 <div key={art.id} onClick={() => setSelectedArticle(art)} className="bg-white dark:bg-[#1A1A1A] border border-gray-100 dark:border-white/5 rounded-[20px] p-3 shadow-sm flex items-center gap-4 cursor-pointer hover:border-gray-200 dark:hover:border-white/10 transition-all active:scale-95">
+630 7 <img src={art.thumb} alt={art.title} className="w-16 h-16 rounded-2xl object-cover" />
+631 8 <div className="flex-1 pt-1">
+632 9 <div className="flex items-center justify-between mb-1.5 flex-row-reverse">
+633 9 <span className={cn("text-[9px] font-bold px-2 py-0.5 rounded-full", art.bg, art.color)}>{art.cat}</span>
+634 9 <span className="text-[9px] text-gray-400 font-bold">{art.mins} دقائق قراءة</span>
+635 8 </div>
+636 8 <h5 className="font-bold text-xs text-gray-800 dark:text-gray-200 leading-tight mb-1">{art.title}</h5>
+637 7 </div>
+638 6 </div>
+639 6 ))}
+640 5 </div>
+641 4 </div>
+642 4 </>
+643 4 )}
+644 3 </div>
+645 3 )}
+646 3 \n      {activeTab === 'progress' && (
+647 4 <div className="px-6 mt-4 space-y-6 text-right animate-in fade-in slide-in-from-bottom-2" dir="rtl">
+648 5 <div className="flex justify-between items-center mb-4">
+649 5 <button
+650 5 onClick={async () => {
+651 5 let report = "=== التقرير الطبي לחالة الدورة الشهرية ===\n\n";
+652 5 report += `تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}\n`;
+653 5 report += `متوسط طول الدورة: 28 يوم\n`;
+654 5 report += `متوسط فترة الحيض: 5 أيام\n\n`;
+655 5 report += "آخر الدورات المسجلة:\n";
+656 5 const periodLogs = logs.filter(l => l.status === 'period').sort((a,b) => b.startDate - a.startDate).slice(0, 5);
+657 5 periodLogs.forEach((l, i) => {
+658 5 const sdStr = new Date(l.startDate).toLocaleDateString('ar-EG');
+659 5 const edStr = l.endDate ? new Date(l.endDate).toLocaleDateString('ar-EG') : 'مستمرة';
+660 5 const len = l.endDate ? Math.ceil((l.endDate - l.startDate) / 86400000) : '-';
+661 5 report += `${i + 1}. من ${sdStr} إلى ${edStr} (المدة: ${len} أيام)\n`;
+662 5 });
+663 5 report += "\nالأعراض الأكثر تكراراً (تحليل الذكاء الاصطناعي):\n";
+664 5 report += "- الم مفاصل: غالباً يحدث قبل الدورة بيومين.\n";
+665 5 report += "- صداع نصفي: يتكرر وقت التبويض.\n";
+666 5 report += "- مغص وإرهاق: مستمر خلال الأيام الأولى للحيض.\n\n";
+667 5 report += "ملاحظة: تفاعل إيجابي مع المسكنات (إيبوبروفين) للمغص.\n\n";
+668 5 report += "=========================================";
+669 5 
+670 5 const printWindow = window.open('', '', 'height=600,width=800');
+671 5 if (printWindow) {
+672 5 printWindow.document.write(`<html dir="rtl"><head><title>التقرير الطبي</title><style>body{font-family: Arial, sans-serif; padding: 30px; line-height: 1.8; color: #333;} h1{color: #C2185B;} pre{white-space: pre-wrap; font-family: inherit; font-size: 14px;}</style></head><body><h1>تقرير المتابعة</h1><pre>${report}</pre><script>window.print()</script></body></html>`);
+673 5 printWindow.document.close();
+674 5 } else {
+675 5 try {
+676 5 await navigator.clipboard.writeText(report);
+677 5 const ok = await confirm("تم نسخ التقرير للحافظة! (يمكنك لصقه في أي مكان). للاستفادة من ميزة الطباعة المباشرة، يرجى السماح بالنوافذ المنبثقة.");
+678 5 } catch(e) {}
+679 5 }
+680 5 }}
+681 5 className="flex justify-center items-center gap-1.5 bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 font-bold px-3 py-1.5 rounded-xl text-[10px] border border-blue-100 dark:border-blue-900/50 shadow-sm transition-all active:scale-95"
+682 5 >
+683 5 <ArrowDownToLine className="w-3.5 h-3.5" />
+684 5 <span>تقرير للطبيب</span>
+685 5 </button>
+686 5 <h3 className="font-bold text-lg text-[#1A1A2E] dark:text-white">إحصائيات دورتك</h3>
+687 4 </div>
+688 4 
+689 4 {/* Correlation Analysis Card */}
+690 5 <div className="bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-900/10 dark:to-[#1A1A1A] border border-indigo-100 dark:border-indigo-900/30 rounded-[24px] p-5 shadow-sm text-right flex flex-row-reverse gap-4 mb-6">
+691 6 <div className="w-16 h-16 bg-white dark:bg-[#1A1A1A] rounded-2xl flex items-center justify-center shrink-0 border border-indigo-50 dark:border-white/5 shadow-sm text-indigo-500">
+692 6 <Brain className="w-8 h-8" />
+693 5 </div>
+694 6 <div className="flex-1 flex flex-col justify-center">
+695 6 <h4 className="font-bold text-sm text-indigo-800 dark:text-indigo-300 mb-1 flex justify-end items-center gap-1">
+696 6 <Sparkles className="w-4 h-4" /> تحليل الترابط
+697 6 </h4>
+698 6 <p className="text-[11px] text-gray-600 dark:text-gray-400 font-medium leading-relaxed mb-3">
+699 6 لاحظنا أن <span className="font-bold text-rose-500">الصداع النصفي</span> يتكرر لديكِ غالباً أثناء <b>التبويض</b>، بينما <span className="font-bold text-amber-500">ألم المفاصل</span> يأتي عادةً <b>قبل بداية الحيض بيومين</b>.
+700 6 </p>
+701 6 <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-50/50 dark:bg-indigo-900/20 p-2 rounded-xl text-center">
+702 6 نصيحة: للوقاية من الصداع غداً، احرصي على شرب لترين من الماء وتقليل الكافيين.
+703 6 </p>
+704 5 </div>
+705 4 </div>
+706 4 
+707 5 <div className="grid grid-cols-2 gap-3 mb-6">
+708 6 <div className="bg-white dark:bg-[#1A1A1A] border border-[#F0EBE1] dark:border-white/5 rounded-[20px] p-4 shadow-sm flex flex-col items-center justify-center text-center">
+709 6 <span className="text-[10px] font-bold text-gray-500 mb-1">متوسط طول الدورة</span>
+710 6 <span className="text-2xl font-black text-[#1A1A2E] dark:text-white">28 <span className="text-[10px] font-bold text-gray-400">يوم</span></span>
+711 5 </div>
+712 6 <div className="bg-white dark:bg-[#1A1A1A] border border-[#F0EBE1] dark:border-white/5 rounded-[20px] p-4 shadow-sm flex flex-col items-center justify-center text-center">
+713 6 <span className="text-[10px] font-bold text-gray-500 mb-1">متوسط فترة الحيض</span>
+714 6 <span className="text-2xl font-black text-[#1A1A2E] dark:text-white">5 <span className="text-[10px] font-bold text-gray-400">أيام</span></span>
+715 5 </div>
+716 4 </div>
+717 4 
+718 4 {/* Cycle Length Chart */}
+719 5 <div className="bg-white dark:bg-[#1A1A1A] border border-[#F0EBE1] dark:border-white/5 rounded-[24px] p-5 shadow-sm">
+720 5 <h4 className="font-bold text-sm text-gray-800 dark:text-white mb-6">طول الدورة (آخر 6 شهور)</h4>
+721 6 <div className="h-40 w-full" dir="ltr">
+722 6 <ResponsiveContainer width="100%" height="100%">
+723 6 <AreaChart data={[
+724 6 { name: 'يناير', days: 28 },
+725 6 { name: 'فبراير', days: 27 },
+726 6 { name: 'مارس', days: 29 },
+727 6 { name: 'أبريل', days: 28 },
+728 6 { name: 'مايو', days: 28 },
+729 6 { name: 'يونيو', days: 30 }
+730 6 ]} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
+731 6 <defs>
+732 6 <linearGradient id="colorDays" x1="0" y1="0" x2="0" y2="1">
+733 6 <stop offset="5%" stopColor="#C2185B" stopOpacity={0.3}/>
+734 6 <stop offset="95%" stopColor="#C2185B" stopOpacity={0}/>
+735 6 </linearGradient>
+736 6 </defs>
+737 6 <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+738 6 <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} domain={['dataMin - 2', 'dataMax + 2']} />
+739 6 <RechartsTooltip
+740 6 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+741 6 labelStyle={{ fontWeight: 'bold', color: '#1A1A2E', textAlign: 'right' }}
+742 6 itemStyle={{ color: '#C2185B', fontWeight: 'bold', textAlign: 'right' }}
+743 6 />
+744 6 <Area type="monotone" dataKey="days" name="الأيام" stroke="#C2185B" strokeWidth={3} fillOpacity={1} fill="url(#colorDays)" />
+745 6 </AreaChart>
+746 6 </ResponsiveContainer>
+747 5 </div>
+748 4 </div>
+749 4 
+750 5 <div className="bg-white dark:bg-[#1A1A1A] border border-[#F0EBE1] dark:border-white/5 rounded-[24px] p-5 shadow-sm mt-6">
+751 6 <div className="flex justify-between items-center mb-4 flex-row-reverse">
+752 6 <h4 className="font-bold text-sm text-gray-800 dark:text-white">تواريخ آخر الدورات</h4>
+753 6 <button onClick={() => {
+754 6 const sd = prompt('أدخلي تاريخ بداية الدورة (YYYY-MM-DD):');
+755 6 if (sd) {
+756 6 const ed = prompt('أدخلي تاريخ نهاية الدورة (YYYY-MM-DD) أو اتركيه فارغاً:');
+757 6 const startDate = new Date(sd).getTime();
+758 6 if (!isNaN(startDate)) {
+759 6 const endDate = ed ? new Date(ed).getTime() : null;
+760 6 addDoc(collection(db, 'users', user?.uid || '', 'cycleLogs'), { startDate, endDate: !isNaN(endDate as any) ? endDate : null, status: 'period', timestamp: Date.now() });
+761 6 }
+762 6 }
+763 6 }} className="text-[10px] font-bold text-[#C2185B] bg-pink-50 dark:bg-pink-900/10 px-3 py-1.5 rounded-full hover:bg-pink-100 transition-colors flex items-center gap-1">
+764 6 <PlusCircle className="w-3 h-3" /> اضافة دورة سابقة
+765 6 </button>
+766 5 </div>
+767 6 <div className="flex flex-wrap gap-3 text-[9px] font-bold text-gray-500 mb-4 justify-end">
+768 6 <span className="flex items-center gap-1 flex-row-reverse"><span className="w-2.5 h-2.5 rounded-full bg-[#a882dd]"></span> يوم التبويض</span>
+769 6 <span className="flex items-center gap-1 flex-row-reverse"><span className="w-2.5 h-2.5 rounded-full bg-[#79dae8]"></span> أيام الخصوبة</span>
+770 6 <span className="flex items-center gap-1 flex-row-reverse"><span className="w-2.5 h-2.5 rounded-full bg-[#ff7c8f]"></span> أيام الحيض</span>
+771 5 </div>
+772 5 
+773 5 {logs.filter(l => l.status === 'period').length === 0 ? (
+774 5 <p className="text-xs text-gray-500 text-center py-4">لم يتم تسجيل أي دورات سابقة.</p>
+775 5 ) : (
+776 6 <div className="space-y-4 relative z-0">
+777 6 {logs.filter(l => l.status === 'period').slice(0, 3).map((log, index, arr) => {
+778 6 const nextLog = arr[index - 1]; // since it's sorted descending
+779 6 const cycleLength = nextLog
+780 6 ? Math.floor((nextLog.startDate - log.startDate) / 86400000)
+781 6 : 28; // fallback to 28 for current/last cycle
+782 6 
+783 6 const periodLength = log.endDate ? Math.ceil((log.endDate - log.startDate) / 86400000) : 5;
+784 6 const daysArray = Array.from({length: Math.min(cycleLength, 35)}, (_, i) => i + 1);
+785 6 
+786 6 return (
+787 7 <div key={log.id} className="border border-gray-100 dark:border-white/5 rounded-[20px] p-4 text-center relative group">
+788 7 <button onClick={async () => {
+789 7 const ok = await confirm('هل أنت متأكدة من حذف هذا السجل؟', 'حذف', 'إلغاء');
+790 7 if (ok) {
+791 7 try {
+792 7 await deleteDoc(doc(db, 'users', user?.uid || '', 'cycleLogs', log.id));
+793 7 } catch (err) {
+794 7 console.error("Error deleting log:", err);
+795 7 }
+796 7 }
+797 7 }} className="absolute top-3 left-3 w-7 h-7 rounded-full bg-red-50 dark:bg-red-500/10 text-red-500 flex items-center justify-center transition-opacity z-10 hover:bg-red-100 dark:hover:bg-red-500/20 active:scale-95" title="حذف السجل">
+798 7 <Trash2 className="w-3.5 h-3.5" />
+799 7 </button>
+800 7 <p className="text-xs font-bold text-gray-800 dark:text-white mb-3">
+801 7 {new Date(log.startDate).toLocaleDateString('ar-EG', { month: 'long', day: 'numeric', year: 'numeric' })}
+802 7 {log.endDate ? ` - ${new Date(log.endDate).toLocaleDateString('ar-EG', { month: 'long', day: 'numeric', year: 'numeric' })}` : ' (الدورة الحالية)'}
+803 7 <span className="text-gray-400 font-normal mr-2">({cycleLength} يوم)</span>
+804 7 </p>
+805 7 
+806 8 <div className="flex flex-wrap justify-between gap-1 max-w-[280px] mx-auto text-[10px] font-bold" dir="rtl">
+807 8 {daysArray.map(dayNum => {
+808 8 let bgColor = "bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 text-gray-400";
+809 8 if (dayNum <= periodLength) bgColor = "bg-[#ff7c8f] border-[#ff7c8f] text-white";
+810 8 else if (dayNum >= 10 && dayNum <= 13) bgColor = "bg-[#79dae8] border-[#79dae8] text-white";
+811 8 else if (dayNum === 14) bgColor = "bg-[#a882dd] border-[#a882dd] text-white";
+812 8 
+813 8 return (
+814 9 <div key={dayNum} className={cn("w-6 h-6 rounded-full flex items-center justify-center shrink-0", bgColor)}>
+815 9 {dayNum}
+816 8 </div>
+817 8 );
+818 8 })}
+819 7 </div>
+820 6 </div>
+821 6 )})}
+822 5 </div>
+823 5 )}
+824 4 </div>
+825 4 
+826 5 <div className="bg-white dark:bg-[#1A1A1A] border border-[#F0EBE1] dark:border-white/5 rounded-[24px] p-5 shadow-sm mt-6 mb-8 text-right">
+827 5 <h4 className="font-bold text-sm text-gray-800 dark:text-white mb-4">إعدادات وسائل الدعم ومنع الحمل</h4>
+828 5 <p className="text-xs text-gray-500 mb-4 leading-relaxed font-medium">وسيلة منع الحمل المختارة ستؤثر على كيفية تتبع التطبيق لدورتك وتقديم النصائح اليومية.</p>
+829 5 <select
+830 5 className="w-full bg-gray-50 dark:bg-[#2A2A2A] border border-gray-100 dark:border-white/10 rounded-xl p-3 text-sm font-bold text-gray-800 dark:text-white mb-2 focus:outline-none focus:border-[#C2185B]"
+831 5 dir="rtl"
+832 5 value={contraceptionMethod}
+833 5 onChange={async (e) => {
+834 5 const val = e.target.value;
+835 5 setContraceptionMethod(val);
+836 5 if (user) {
+837 5 try {
+838 5 await setDoc(doc(db, 'users', user.uid, 'settings', 'womensHealth'), {
+839 5 contraceptionMethod: val
+840 5 }, { merge: true });
+841 5 } catch (err) {
+842 5 console.error("Error updating settings:", err);
+843 5 }
+844 5 }
+845 5 }}
+846 5 >
+847 5 <option value="none">لا أستخدم وسيلة حالياً</option>
+848 5 <option value="pill">حبوب منع الحمل (تأثير على التبويض)</option>
+849 5 <option value="minipill">حبوب منع الحمل المصغرة (الرضاعة)</option>
+850 5 <option value="iud_copper">اللولب النحاسي (قد يزيد التدفق)</option>
+851 5 <option value="iud_hormonal">اللولب الهرموني (تخفيف التدفق)</option>
+852 5 <option value="injection">حقن منع الحمل</option>
+853 5 <option value="implant">شريحة تحت الجلد (Implant)</option>
+854 5 </select>
+855 5 {contraceptionMethod === 'pill' && (
+856 5 <div className="text-[10px] text-pink-600 bg-pink-50 dark:bg-pink-900/20 dark:text-pink-400 border border-pink-100 dark:border-pink-900/30 p-2 rounded-lg mt-2 font-bold mb-2">💡 سيتم تعديل توقعات دورتك لتكون منتظمة (التبويض غير متوقع).</div>
+857 5 )}
+858 5 {contraceptionMethod === 'iud_copper' && (
+859 5 <div className="text-[10px] text-pink-600 bg-pink-50 dark:bg-pink-900/20 dark:text-pink-400 border border-pink-100 dark:border-pink-900/30 p-2 rounded-lg mt-2 font-bold mb-2">💡 دورتك قد تستمر لتكون منتظمة، ولكن قد تواجهين تدفقاً أثقل في الأيام الأولى.</div>
+860 5 )}
+861 5 {contraceptionMethod === 'iud_hormonal' && (
+862 5 <div className="text-[10px] text-pink-600 bg-pink-50 dark:bg-pink-900/20 dark:text-pink-400 border border-pink-100 dark:border-pink-900/30 p-2 rounded-lg mt-2 font-bold mb-2">💡 قد تواجهين غياباً للدورة أو تدفقاً خفيفاً جداً بمرور الوقت.</div>
+863 5 )}
+864 4 </div>
+865 3 </div>
+866 3 )}
+867 3 
+868 3 {activeTab === 'community' && (
+869 4 <div className="px-6 mt-4 space-y-6 text-right animate-in fade-in slide-in-from-bottom-2" dir="rtl">
+870 5 <div className="flex justify-between items-center mb-4">
+871 5 <h3 className="font-bold text-lg text-[#1A1A2E] dark:text-white">تجارب ودعم</h3>
+872 5 <button className="bg-[#C2185B] text-white p-2 rounded-full shadow-sm hover:scale-105 active:scale-95 transition-all">
+873 5 <PlusCircle className="w-4 h-4" />
+874 5 </button>
+875 4 </div>
+876 4 
+877 4 {[
+878 4 { name: 'سارة', avatar: 'S', msg: 'في فترة التبويض بكون نشيطة جداً، هل فيه أكلات معينة بتنصحوني بيها تدعم طاقتي؟' },
+879 4 { name: 'مريم', avatar: 'M', msg: 'تجربتي مع اليوجا الاسترخائية وقت الحيض فرقت جداً في تخفيف الألم والتقلصات.' },
+880 4 { name: 'نور', avatar: 'N', msg: 'إزاي بتتعاملوا مع تقلبات المزاج في فترة ما قبل الطمث؟ الموضوع مأثر على دراستي جداً.' }
+881 4 ].map((c, i) => (
+882 5 <div key={i} className="bg-white dark:bg-[#1A1A1A] border border-[#F0EBE1] dark:border-white/5 rounded-[20px] p-4 shadow-sm flex gap-3">
+883 6 <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 flex items-center justify-center font-bold shrink-0">
+884 6 {c.avatar}
+885 5 </div>
+886 6 <div>
+887 6 <h4 className="font-bold text-xs text-gray-800 dark:text-white mb-1">{c.name}</h4>
+888 6 <p className="text-[11px] text-gray-500 leading-relaxed font-medium">{c.msg}</p>
+889 7 <div className="flex gap-4 mt-3 text-[10px] font-bold text-gray-400">
+890 7 <button className="hover:text-[#C2185B] transition-colors flex items-center gap-1 cursor-pointer"><HeartPulse className="w-3 h-3" /> إعجاب</button>
+891 7 <button className="hover:text-sky-500 transition-colors flex items-center gap-1 cursor-pointer"><MessageCircle className="w-3 h-3" /> تعليق</button>
+892 6 </div>
+893 5 </div>
+894 4 </div>
+895 4 ))}
+896 3 </div>
+897 3 )}
+898 2 </div>
+899 2 
+900 2 {confirmState?.isOpen && (
+901 3 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
+902 4 <div className="bg-white dark:bg-[#1A1A1A] p-6 rounded-3xl max-w-sm w-full text-right shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] animate-in zoom-in-95 duration-200">
+903 4 <p className="text-sm text-gray-700 dark:text-gray-300 mb-6 font-bold leading-relaxed whitespace-pre-wrap">{confirmState.message}</p>
+904 5 <div className="flex gap-3">
+905 5 <button onClick={confirmState.onConfirm} className="flex-1 bg-[#C2185B] hover:bg-[#A0144A] text-white font-bold py-3 rounded-xl transition-all active:scale-95">{confirmState.confirmText || 'نعم'}</button>
+906 5 <button onClick={confirmState.onCancel} className="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 font-bold py-3 rounded-xl transition-all active:scale-95">{confirmState.cancelText || 'إلغاء'}</button>
+907 4 </div>
+908 3 </div>
+909 2 </div>
+910 2 )}
+911 2 
+912 1 </div>
+913 1 );
+914 1 }
+915 1 

@@ -1,0 +1,165 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200;300;400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Cairo", ui-sans-serif, system-ui, sans-serif;
+  
+  --color-primary: #1A4D42;
+  --color-primary-light: #E8EFE5;
+  --color-primary-dark: #0D2923;
+  
+  --color-accent: #D4A373;
+  --color-accent-light: #FAEDDF;
+  
+  --color-women: #E07A5F;
+  --color-women-light: #F4DFD8;
+
+  --color-sleep: #3D405B;
+  --color-sleep-light: #EBECEF;
+
+  --color-bg-app: #FDFBF7;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant sky (&:where(.sky, .sky *));
+
+@layer base {
+  html.dark {
+    color-scheme: dark;
+  }
+  
+  html.sky {
+    color-scheme: dark;
+  }
+  
+  body {
+    background-color: var(--color-bg-app);
+    color: #1A1C1E; /* Enhanced contrast for body text in light mode */
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+    @apply antialiased transition-colors duration-500 font-sans;
+  }
+  
+  .dark body {
+    background-color: #111214; /* Slightly deeper rich black for better contrast */
+    color: #F8FAFC; /* Exceptional, soft high-contrast white */
+  }
+
+  .sky body {
+    background-color: #050E1A; /* Extremely deep midnight celestial blue */
+    color: #F1F7FE; /* Sparkling crisp high-contrast white text */
+  }
+}
+
+/* Accessibility and Color Contrast Enhancements across Themes */
+@layer utilities {
+  /* Light Theme Muted Font Contrast Boosters: Shifts low-contrast text-gray properties to highly readable alternatives */
+  html:not(.dark):not(.sky) .text-gray-400 {
+    color: #4B5563 !important; /* Force highly readable slate-600 */
+  }
+  html:not(.dark):not(.sky) .text-gray-500 {
+    color: #374151 !important; /* Force readable slate-700 */
+  }
+  html:not(.dark):not(.sky) .text-gray-300 {
+    color: #6B7280 !important; /* Force readable gray-500 instead of faint white-gray */
+  }
+
+  /* Dark Theme Muted Font Contrast Boosters */
+  .dark:not(.sky) .text-gray-400,
+  .dark:not(.sky) .dark\:text-gray-400 {
+    color: #D1D5DB !important; /* Rich light gray-300 for readable descriptions */
+  }
+  .dark:not(.sky) .text-gray-500,
+  .dark:not(.sky) .dark\:text-gray-500 {
+    color: #E5E7EB !important; /* Soft white-gray-200 */
+  }
+  .dark:not(.sky) .text-gray-300 {
+    color: #F3F4F6 !important; /* Bright crisp gray-100 */
+  }
+
+  /* Sky (Celestial) Theme Palette and Contrast Enhancements */
+  .sky .text-gray-400,
+  .sky .dark\:text-gray-400,
+  .sky .text-gray-500,
+  .sky .dark\:text-gray-500,
+  .sky .text-gray-600,
+  .sky .text-sky-300 {
+    color: #BAE6FD !important; /* Highly readable vibrant soft sky blue */
+  }
+  .sky .text-gray-800,
+  .sky .text-gray-900,
+  .sky .dark\:text-gray-100,
+  .sky .text-emerald-900,
+  .sky .dark\:text-white {
+    color: #F0F9FF !important; /* Clear light blue-white text */
+  }
+
+  /* Harmonize Sky Theme card backgrounds to gorgeous navy blues instead of dark charcoal card backgrounds */
+  .sky .bg-white,
+  .sky .bg-\[\#FDFBF7\],
+  .sky .bg-\[\#F8F9FB\],
+  .sky .bg-amber-50\/70,
+  .sky .dark\:bg-\[\#1A1A1A\],
+  .sky .dark\:bg-\[\#121415\],
+  .sky .dark\:bg-\[\#121212\],
+  .sky .dark\:bg-\[\#1e1e1e\] {
+    background-color: #0C1A30 !important; /* Contrastful deep navy blue card background */
+  }
+
+  /* Harmonize Sky inner sub-elements and list items */
+  .sky .bg-gray-50,
+  .sky .bg-gray-100,
+  .sky .dark\:bg-white\/5,
+  .sky .dark\:bg-black\/20,
+  .sky .dark\:bg-black\/10,
+  .sky .bg-white\/50,
+  .sky .dark\:bg-white\/5 {
+    background-color: #071120 !important; /* Deep celestial inner frame background */
+  }
+
+  /* Contrast borders under Sky Mode */
+  .sky .border-gray-100,
+  .sky .border-gray-200,
+  .sky .dark\:border-white\/5,
+  .sky .dark\:border-white\/10 {
+    border-color: rgba(56, 189, 248, 0.18) !important; /* Custom celestial border separation */
+  }
+
+  /* Elevate interactive elements (inputs, textareas) under Sky mode */
+  .sky input, 
+  .sky textarea, 
+  .sky select {
+    background-color: #060D1A !important;
+    color: #FFFFFF !important;
+    border-color: rgba(56, 189, 248, 0.3) !important;
+  }
+  .sky input::placeholder, 
+  .sky textarea::placeholder {
+    color: #64748B !important;
+  }
+}
+
+/* Custom utility for soft shadows seen in design */
+@layer utilities {
+  .shadow-soft {
+    box-shadow: 0 12px 32px -4px rgba(20, 24, 28, 0.08), 0 4px 12px -2px rgba(20, 24, 28, 0.04);
+  }
+  .dark .shadow-soft {
+    box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.4), 0 4px 12px -2px rgba(0, 0, 0, 0.2);
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  @keyframes slideRight {
+    0% { background-position: 0 0; }
+    100% { background-position: -200px 0; }
+  }
+  .animate-\\[slideRight_10s_linear_infinite\\] {
+    animation: slideRight 10s linear infinite;
+  }
+}

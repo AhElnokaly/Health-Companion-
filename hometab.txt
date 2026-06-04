@@ -1,0 +1,181 @@
+300 +0 -0 d=0 
+301 +0 -0 d=0 {/* Header */}
+302 +1 -0 d=1 <div className="px-6 pt-10 pb-6 bg-white dark:bg-[#1A1A1A] border-b border-[#F0EBE1] dark:border-white/5 relative z-10 rounded-b-[40px] shadow-[0_4px_24px_-12px_rgba(0,0,0,0.05)]">
+303 +1 -0 d=2 <div className="flex justify-between items-center mb-4 flex-row-reverse">
+304 +0 -0 d=2 <button onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-center text-gray-500 active:scale-95 transition-all">
+305 +0 -0 d=2 <ChevronRight className="w-6 h-6" />
+306 +0 -0 d=2 </button>
+307 +1 -0 d=3 <div className="text-center">
+308 +0 -0 d=3 <h1 className="text-xl font-bold flex justify-center items-center gap-1 tracking-tight text-[#1A1A2E] dark:text-white">
+309 +0 -0 d=3 Woman Companion
+310 +0 -0 d=3 </h1>
+311 +0 -0 d=3 <h2 className="text-lg font-black text-[#1A1A2E] dark:text-white mt-1">رفيقة المرأة 🌸</h2>
+312 +0 -1 d=2 </div>
+313 +1 -0 d=3 <div className="flex gap-2 relative">
+314 +0 -0 d=3 <button onClick={() => setIsPrivacyMode(!isPrivacyMode)} className="w-10 h-10 flex items-center justify-center text-gray-500 active:scale-95 transition-all">
+315 +0 -0 d=3 {isPrivacyMode ? <EyeOff className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
+316 +0 -0 d=3 </button>
+317 +0 -1 d=2 </div>
+318 +0 -1 d=1 </div>
+319 +0 -0 d=1 
+320 +0 -0 d=1 {/* Global Settings */}
+321 +1 -0 d=2 <div className="flex justify-between items-center gap-2 mb-6 flex-row-reverse px-2">
+322 +0 -0 d=2 <button
+323 +0 -0 d=2 onClick={toggleWomensHealth}
+324 +0 -0 d=2 className={cn(
+325 +0 -0 d=2 "flex-1 flex gap-2 items-center justify-center text-[10px] font-bold p-2 rounded-xl transition-all shadow-sm border",
+326 +0 -0 d=2 showWomensHealth
+327 +0 -0 d=2 ? "bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-900/20 dark:text-pink-300 dark:border-pink-900/50"
+328 +0 -0 d=2 : "bg-gray-50 text-gray-500 border-gray-200 dark:bg-white/5 dark:text-gray-400 dark:border-white/10"
+329 +0 -0 d=2 )}
+330 +0 -0 d=2 >
+331 +0 -0 d=2 {showWomensHealth ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+332 +0 -0 d=2 {showWomensHealth ? "إخفاء من الفوتر" : "إظهار في الفوتر"}
+333 +0 -0 d=2 </button>
+334 +0 -0 d=2 <button
+335 +0 -0 d=2 onClick={handleDeleteData}
+336 +0 -0 d=2 className="flex-1 flex gap-2 items-center justify-center text-[10px] font-bold p-2 rounded-xl bg-red-50 text-red-600 border border-red-200 shadow-sm transition-all hover:bg-red-100 active:scale-95 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/50"
+337 +0 -0 d=2 >
+338 +0 -0 d=2 <Trash2 className="w-3.5 h-3.5" />
+339 +0 -0 d=2 مسح البيانات
+340 +0 -0 d=2 </button>
+341 +0 -1 d=1 </div>
+342 +0 -0 d=1 
+343 +0 -0 d=1 {/* Top Navigation Tabs */}
+344 +1 -0 d=2 <div className="flex justify-between items-center bg-gray-50 dark:bg-white/5 p-1 rounded-[18px] mx-auto w-full mb-6 border border-gray-100 dark:border-white/10" dir="rtl">
+345 +0 -0 d=2 <button onClick={() => setActiveTab('home')} className={cn("flex-1 py-2 px-1 rounded-[14px] flex flex-col items-center gap-1 transition-all", activeTab === 'home' ? "bg-white dark:bg-[#2A2A2A] shadow-sm text-[#C2185B]" : "text-gray-500 hover:text-gray-700 dark:text-gray-400")}>
+346 +0 -0 d=2 <Home className="w-4 h-4" />
+347 +0 -0 d=2 <span className="text-[9px] font-bold">الرئيسية</span>
+348 +0 -0 d=2 </button>
+349 +0 -0 d=2 <button onClick={() => setActiveTab('explore')} className={cn("flex-1 py-2 px-1 rounded-[14px] flex flex-col items-center gap-1 transition-all", activeTab === 'explore' ? "bg-white dark:bg-[#2A2A2A] shadow-sm text-[#C2185B]" : "text-gray-500 hover:text-gray-700 dark:text-gray-400")}>
+350 +0 -0 d=2 <Compass className="w-4 h-4" />
+351 +0 -0 d=2 <span className="text-[9px] font-bold">الاستكشاف</span>
+352 +0 -0 d=2 </button>
+353 +0 -0 d=2 <button onClick={() => setActiveTab('community')} className={cn("flex-1 py-2 px-1 rounded-[14px] flex flex-col items-center gap-1 transition-all", activeTab === 'community' ? "bg-white dark:bg-[#2A2A2A] shadow-sm text-[#C2185B]" : "text-gray-500 hover:text-gray-700 dark:text-gray-400")}>
+354 +0 -0 d=2 <Users className="w-4 h-4" />
+355 +0 -0 d=2 <span className="text-[9px] font-bold">المجتمع</span>
+356 +0 -0 d=2 </button>
+357 +0 -0 d=2 <button onClick={() => setActiveTab('progress')} className={cn("flex-1 py-2 px-1 rounded-[14px] flex flex-col items-center gap-1 transition-all", activeTab === 'progress' ? "bg-white dark:bg-[#2A2A2A] shadow-sm text-[#C2185B]" : "text-gray-500 hover:text-gray-700 dark:text-gray-400")}>
+358 +0 -0 d=2 <TrendingUp className="w-4 h-4" />
+359 +0 -0 d=2 <span className="text-[9px] font-bold">التقدم</span>
+360 +0 -0 d=2 </button>
+361 +0 -1 d=1 </div>
+362 +0 -0 d=1 
+363 +1 -0 d=2 <div className={cn("transition-all duration-500", isPrivacyMode && "blur-lg select-none pointer-events-none")}>
+364 +0 -0 d=2 {activeTab === 'home' && (
+365 +0 -0 d=2 <>
+366 +1 -0 d=3 <div className="text-center mb-6">
+367 +0 -0 d=3 <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
+368 +0 -0 d=3 دورتك الحالية: {phaseData.name} <span className="text-gray-400 font-normal inline-block mr-1 text-[10px] bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded-full">(الاستعداد)</span>
+369 +0 -0 d=3 </p>
+370 +0 -0 d=3 {/* Mini timeline indicator */}
+371 +1 -0 d=4 <div className="w-full max-w-[200px] mx-auto mt-3 h-2 bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden flex flex-row-reverse">
+372 +1 -1 d=4 <div className="bg-[#C2185B] h-full" style={{width: '20%'}}></div>
+373 +1 -1 d=4 <div className="bg-[#7B1FA2] h-full" style={{width: '25%'}}></div>
+374 +1 -1 d=4 <div className="bg-[#F57F17] h-full" style={{width: '10%'}}></div>
+375 +1 -1 d=4 <div className="bg-[#00796B] h-full" style={{width: '45%'}}></div>
+376 +0 -1 d=3 </div>
+377 +1 -0 d=4 <div className="flex justify-between text-[8px] font-bold text-gray-400 w-full max-w-[200px] mx-auto mt-1 flex-row-reverse">
+378 +0 -0 d=4 <span>حيض</span>
+379 +0 -0 d=4 <span>جريبي</span>
+380 +0 -0 d=4 <span>تبويض</span>
+381 +0 -0 d=4 <span>لوتيني</span>
+382 +0 -1 d=3 </div>
+383 +0 -1 d=2 </div>
+384 +0 -0 d=2 
+385 +0 -0 d=2 {/* Phase Progress UI */}
+386 +1 -0 d=3 <div className="flex flex-col items-center justify-center mt-4">
+387 +1 -0 d=4 <div className="relative w-[220px] h-[220px] flex items-center justify-center">
+388 +0 -0 d=4 {/* SVG Ring Background */}
+389 +0 -0 d=4 <svg className="w-full h-full transform rotate-180 absolute inset-0">
+390 +0 -0 d=4 <circle cx="110" cy="110" r="90" stroke="currentColor" strokeWidth="18" fill="transparent" className="text-gray-100 dark:text-white/5" />
+391 +0 -0 d=4 {cycleDay !== null && (
+392 +0 -0 d=4 <circle cx="110" cy="110" r="90" stroke={phaseData.color} strokeWidth="18" fill="transparent"
+393 +0 -0 d=4 strokeDasharray={2 * Math.PI * 90}
+394 +0 -0 d=4 strokeDashoffset={2 * Math.PI * 90 - (((isLate ? 28 : (cycleDay || 1)) / 28) * (2 * Math.PI * 90))}
+395 +0 -0 d=4 strokeLinecap="round"
+396 +0 -0 d=4 className="transition-all duration-1000 ease-out"
+397 +0 -0 d=4 />
+398 +0 -0 d=4 )}
+399 +0 -0 d=4 </svg>
+400 +1 -0 d=5 <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+401 +0 -0 d=5 {isLate ? (
+402 +1 -0 d=6 <div className="bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 p-3 rounded-full mb-2 animate-bounce">
+403 +0 -0 d=6 <CalendarIcon className="w-6 h-6" />
+404 +0 -1 d=5 </div>
+405 +0 -0 d=5 ) : (
+406 +0 -0 d=5 <Sparkles className="w-6 h-6 text-gray-300 dark:text-gray-600 mb-2" />
+407 +0 -0 d=5 )}
+408 +1 -1 d=5 <div className="text-4xl font-black tracking-tighter text-[#1A1A2E] dark:text-white">{isLate ? '?؟' : cycleDay}</div>
+409 +1 -1 d=5 <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">{isLate ? 'تأخر الدورة' : 'اليوم الحالي'}</div>
+410 +0 -1 d=4 </div>
+411 +0 -1 d=3 </div>
+412 +0 -1 d=2 </div>
+413 +0 -0 d=2 
+414 +0 -0 d=2 {/* Dynamic Tips & Interventions */}
+415 +1 -0 d=3 <div className="px-6 mt-8">
+416 +1 -0 d=4 <div className={cn("p-4 rounded-[24px] shadow-sm border text-right transition-colors duration-500", phaseData.bg, phaseData.borderColor)}>
+417 +0 -0 d=4 <h3 className={cn("font-bold text-sm mb-2 flex items-center justify-end gap-1.5", phaseData.textColor)}>
+418 +0 -0 d=4 رسالة لكِ هذا الأسبوع
+419 +0 -0 d=4 </h3>
+420 +0 -0 d=4 <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-medium">
+421 +0 -0 d=4 {phaseData.advice}
+422 +0 -0 d=4 </p>
+423 +0 -1 d=3 </div>
+424 +0 -1 d=2 </div>
+425 +0 -0 d=2 
+426 +0 -0 d=2 {/* Fasting Info - If Ramadan mode enabled globally */}
+427 +0 -0 d=2 {isFastingMode && typeof getRamadanMissedDays === 'function' && (
+428 +1 -0 d=3 <div className="px-6 mt-6">
+429 +1 -0 d=4 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30 rounded-[24px] p-5 shadow-sm text-right flex flex-row-reverse gap-4">
+430 +1 -0 d=5 <div className="w-12 h-12 bg-white dark:bg-[#1A1A1A] rounded-full flex items-center justify-center shrink-0 border border-amber-50 dark:border-white/5 shadow-sm text-amber-500">
+431 +0 -0 d=5 <Moon className="w-6 h-6" />
+432 +0 -1 d=4 </div>
+433 +1 -0 d=5 <div className="flex-1 flex flex-col justify-center">
+434 +0 -0 d=5 <h4 className="font-bold text-sm text-amber-900 dark:text-amber-300 mb-1">أيام الإفطار في رمضان</h4>
+435 +0 -0 d=5 <p className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">إجمالي الأيام المتبقية عليكِ قضاؤها: <span className="font-bold text-lg">{getRamadanMissedDays()}</span> أيام</p>
+436 +0 -1 d=4 </div>
+437 +0 -1 d=3 </div>
+438 +0 -1 d=2 </div>
+439 +0 -0 d=2 )}
+440 +0 -0 d=2 
+441 +0 -0 d=2 {/* Quick Log Buttons Container */}
+442 +1 -0 d=3 <div className="px-6 mt-8 mb-6">
+443 +0 -0 d=3 <h3 className="font-bold text-[#1A1A2E] dark:text-white text-right mb-4">تسجيل سريع</h3>
+444 +0 -0 d=3 
+445 +1 -0 d=4 <div className="bg-white dark:bg-[#1A1A1A] border border-[#F0EBE1] dark:border-white/5 rounded-[24px] p-4 shadow-sm mb-4">
+446 +0 -0 d=4 <p className="text-[10px] font-bold text-gray-500 text-right mb-3">كيف تشعرين اليوم؟</p>
+447 +1 -0 d=5 <div className="flex flex-wrap justify-end gap-2" dir="rtl">
+448 +0 -0 d=5 <button onClick={() => toggleMood('Mood')} className={cn("flex flex-col items-center gap-1 transition-all", !activeMoods.includes('Mood') && "opacity-40")}>
+449 +0 -0 d=5 <Sparkles className="w-4 h-4 text-pink-500" />
+450 +0 -0 d=5 <span className="text-[8px] font-bold text-gray-800 dark:text-white">Mood</span>
+451 +0 -0 d=5 </button>
+452 +0 -0 d=5 <button onClick={() => toggleMood('Energy')} className={cn("flex flex-col items-center gap-1 transition-all", !activeMoods.includes('Energy') && "opacity-40")}>
+453 +0 -0 d=5 <Activity className="w-4 h-4 text-orange-500" />
+454 +0 -0 d=5 <span className="text-[8px] font-bold text-gray-800 dark:text-white">Energy</span>
+455 +0 -0 d=5 </button>
+456 +0 -0 d=5 <button onClick={() => toggleMood('Pain')} className={cn("flex flex-col items-center gap-1 transition-all", !activeMoods.includes('Pain') && "opacity-40")}>
+457 +0 -0 d=5 <Brain className="w-4 h-4 text-teal-500" />
+458 +0 -0 d=5 <span className="text-[8px] font-bold text-gray-800 dark:text-white">Pain</span>
+459 +0 -0 d=5 </button>
+460 +0 -1 d=4 </div>
+461 +0 -1 d=3 </div>
+462 +0 -1 d=2 </div>
+463 +0 -0 d=2 
+464 +0 -0 d=2 {/* Pamper Yourself Card */}
+465 +1 -0 d=3 <div className="px-6">
+466 +1 -0 d=4 <div className="bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/20 rounded-[24px] p-5 shadow-sm text-right flex flex-col gap-4">
+467 +0 -0 d=4 <h4 className="font-bold text-sm text-[#C2185B] dark:text-rose-400 mb-1 flex items-center justify-end gap-2">
+468 +0 -0 d=4 دللي نفسك <Coffee className="w-4 h-4" />
+469 +0 -0 d=4 </h4>
+470 +0 -0 d=4 <p className="text-[11px] text-gray-600 dark:text-gray-400 font-medium mb-1 leading-relaxed">
+471 +0 -0 d=4 استرخي بمشروب دافئ ومريح. سيتم تسجيله تلقائياً في سجلات المياه!
+472 +0 -0 d=4 </p>
+473 +1 -0 d=5 <div className="grid grid-cols-3 gap-2" dir="rtl">
+474 +0 -0 d=5 {[
+475 +0 -0 d=5 { id: 'mint', name: 'نعناع', icon: '🌿', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100/50 dark:bg-emerald-500/20' },
+476 +0 -0 d=5 { id: 'ginger', name: 'زنجبيل', icon: '🫚', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100/50 dark:bg-amber-500/20' },
+477 +0 -0 d=5 { id: 'chamomile', name: 'بابونج', icon: '🌼', color: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-100/50 dark:bg-yellow-500/20' }
+478 +0 -0 d=5 ].map(drink => {
+479 +0 -0 d=5 const isLogged = loggedDrinks.includes(drink.id);
+480 +0 -0 d=5 return (

@@ -1,0 +1,8 @@
+{
+  "name": "Health Companion",
+  "description": "A comprehensive health tracking application for medications, water, diet, sleep, women's health, and symptoms.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
